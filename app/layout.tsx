@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { manrope, spaceMono } from "@/lib/fonts";
+import { Toaster } from "sonner";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -25,6 +26,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         className="min-h-dvh flex flex-col bg-canvas text-text-primary"
       >
         {children}
+        <Toaster richColors position="top-center" />
       </body>
     </html>
   );
