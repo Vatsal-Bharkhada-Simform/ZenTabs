@@ -74,7 +74,8 @@ export async function registerUser(prevState: any, formData: FormData) {
       console.error("Failed to fetch avatar seed:", e);
     }
 
-    // Create user and a default profile in a single transaction
+    // Create user and a default "Personal" profile in a single transaction.
+    // The profile is a session preset (for "Open All") — it does not own bookmarks.
     await prisma.$transaction(async (tx: any) => {
       const user = await tx.user.create({
         data: {

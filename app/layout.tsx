@@ -26,7 +26,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         className="min-h-dvh flex flex-col bg-canvas text-text-primary"
       >
         {children}
-        <Toaster richColors position="top-center" />
+        <Toaster
+          richColors
+          position="top-center"
+          toastOptions={{
+            style: { fontFamily: "var(--font-sans)" },
+          }}
+        />
       </body>
     </html>
   );

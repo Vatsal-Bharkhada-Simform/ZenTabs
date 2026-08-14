@@ -4,16 +4,6 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
-// Utility to get the user's default profile (first active profile)
-async function getDefaultProfile(userId: string) {
-  const profile = await prisma.profile.findFirst({
-    where: { userId, deletedAt: null },
-    orderBy: { createdAt: "asc" },
-  });
-  if (!profile) throw new Error("No active profile found");
-  return profile;
-}
-
 // Utility to fetch favicon
 function getFaviconUrl(url: string) {
   try {
@@ -35,24 +25,21 @@ export async function createBookmark(prevState: any, formData: FormData) {
   if (!url) return { error: "URL is required" };
 
   try {
-    // Basic URL validation
     new URL(url);
   } catch (e) {
     return { error: "Invalid URL format" };
   }
 
   try {
-    const profile = await getDefaultProfile(session.user.id);
     const faviconUrl = getFaviconUrl(url);
 
-    // If no title provided, extract domain as a fallback
     if (!title) {
       title = new URL(url).hostname;
     }
 
     await prisma.bookmark.create({
       data: {
-        profileId: profile.id,
+        userId: session.user.id,
         url,
         title,
         description: description || null,
@@ -81,19 +68,14 @@ export async function updateBookmark(prevState: any, formData: FormData) {
   if (isNaN(id) || !url || !title) return { error: "Missing required fields" };
 
   try {
-    // Basic URL validation
     new URL(url);
   } catch (e) {
     return { error: "Invalid URL format" };
   }
 
   try {
-    // Ensure bookmark belongs to a profile owned by the user
     const bookmark = await prisma.bookmark.findFirst({
-      where: {
-        id,
-        profile: { userId: session.user.id },
-      },
+      where: { id, userId: session.user.id },
     });
 
     if (!bookmark) return { error: "Bookmark not found or unauthorized" };
@@ -124,15 +106,11 @@ export async function deleteBookmark(id: number) {
 
   try {
     const bookmark = await prisma.bookmark.findFirst({
-      where: {
-        id,
-        profile: { userId: session.user.id },
-      },
+      where: { id, userId: session.user.id },
     });
 
     if (!bookmark) return { error: "Bookmark not found or unauthorized" };
 
-    // Soft delete
     await prisma.bookmark.update({
       where: { id },
       data: { deletedAt: new Date() },
@@ -143,5 +121,71 @@ export async function deleteBookmark(id: number) {
   } catch (error) {
     console.error("Failed to delete bookmark:", error);
     return { error: "Failed to delete bookmark" };
+  }
+}
+
+export async function restoreBookmark(id: number) {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "Unauthorized" };
+
+  try {
+    const bookmark = await prisma.bookmark.findFirst({
+      where: { id, userId: session.user.id },
+    });
+
+    if (!bookmark) return { error: "Bookmark not found or unauthorized" };
+
+    await prisma.bookmark.update({
+      where: { id },
+      data: { deletedAt: null },
+    });
+
+    revalidatePath("/dashboard");
+    revalidatePath("/dashboard/trash");
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to restore bookmark:", error);
+    return { error: "Failed to restore bookmark" };
+  }
+}
+
+export async function hardDeleteBookmark(id: number) {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "Unauthorized" };
+
+  try {
+    const bookmark = await prisma.bookmark.findFirst({
+      where: { id, userId: session.user.id },
+    });
+
+    if (!bookmark) return { error: "Bookmark not found or unauthorized" };
+
+    await prisma.bookmark.delete({ where: { id } });
+
+    revalidatePath("/dashboard/trash");
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to permanently delete bookmark:", error);
+    return { error: "Failed to permanently delete bookmark" };
+  }
+}
+
+export async function emptyTrash() {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "Unauthorized" };
+
+  try {
+    await prisma.bookmark.deleteMany({
+      where: {
+        userId: session.user.id,
+        deletedAt: { not: null },
+      },
+    });
+
+    revalidatePath("/dashboard/trash");
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to empty trash:", error);
+    return { error: "Failed to empty trash" };
   }
 }

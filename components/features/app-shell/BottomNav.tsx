@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookmarkSimple, SquaresFour, Hash, Trash } from "@phosphor-icons/react";
+import { BookmarkSimple, SquaresFour, Tag, Trash } from "@phosphor-icons/react";
 
 const NAVIGATION = [
-  { name: "Dash", href: "/dashboard", icon: SquaresFour },
+  { name: "Dash", href: "/dashboard", icon: SquaresFour, exact: true },
   { name: "Collect", href: "/dashboard/collections", icon: BookmarkSimple },
-  { name: "Tags", href: "/dashboard/tags", icon: Hash },
+  { name: "Tags", href: "/dashboard/tags", icon: Tag },
   { name: "Trash", href: "/dashboard/trash", icon: Trash },
 ];
 
@@ -17,7 +17,9 @@ export function BottomNav() {
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around h-16 bg-canvas/90 backdrop-blur-md border-t border-border-strong pb-safe">
       {NAVIGATION.map((item) => {
-        const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+        const isActive = item.exact
+          ? pathname === item.href
+          : pathname === item.href || pathname.startsWith(`${item.href}/`);
         const Icon = item.icon;
 
         return (
