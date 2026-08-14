@@ -58,6 +58,22 @@ export async function registerUser(prevState: any, formData: FormData) {
 
     const hashedPassword = await bcrypt.hash(password, 12);
 
+    let avatarUrl = null;
+    try {
+      const avatarEngineUrl = process.env.AVATAR_ENGINE_URL;
+      if (avatarEngineUrl) {
+        const res = await fetch(avatarEngineUrl);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.seed) {
+            avatarUrl = `${avatarEngineUrl}?seed=${data.seed}`;
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Failed to fetch avatar seed:", e);
+    }
+
     // Create user and a default profile in a single transaction
     await prisma.$transaction(async (tx: any) => {
       const user = await tx.user.create({
@@ -65,6 +81,7 @@ export async function registerUser(prevState: any, formData: FormData) {
           name,
           email,
           password: hashedPassword,
+          avatarUrl,
         },
       });
 

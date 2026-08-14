@@ -18,6 +18,10 @@ export const authConfig = {
 
       const isAuthRoute = nextUrl.pathname === '/login' || nextUrl.pathname === '/register';
       if (isAuthRoute && isLoggedIn) {
+        // Allow deliberate visits to auth pages (e.g. to switch accounts) via ?switch=true
+        if (nextUrl.searchParams.has('switch')) {
+          return true;
+        }
         return Response.redirect(new URL('/dashboard', nextUrl));
       }
 

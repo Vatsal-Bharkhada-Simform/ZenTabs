@@ -34,7 +34,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         );
 
         if (passwordsMatch) {
-          return user;
+          // Map avatarUrl to image so NextAuth includes it in the session by default
+          return {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            image: user.avatarUrl,
+          };
         }
 
         return null;
