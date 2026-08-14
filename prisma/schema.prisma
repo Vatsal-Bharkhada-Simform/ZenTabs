@@ -1,0 +1,262 @@
+// ============================================================
+// Prisma Schema — Bookmark Manager (Next.js)
+//
+// Key design decisions:
+//
+//  1. BOOKMARKS are user-owned (not profile-scoped)
+//     The global bookmark library belongs directly to User.
+//     Profiles are curated subsets of this library, linked via
+//     the ProfileBookmark join table.
+//
+//  2. PROFILES are session presets
+//     A Profile is a named, curated list of bookmarks that the
+//     user can launch all-at-once in a new browser window.
+//     Bookmarks can belong to multiple profiles simultaneously.
+//
+//  3. COLLECTIONS are user-owned (not profile-scoped)
+//     Like bookmarks, collections are a flat organizational layer
+//     owned directly by the User — not tied to any Profile.
+//
+//  4. openCount removed from Profile
+//     The display count is now the number of entries (bookmarks)
+//     in the profile, derived from ProfileBookmark. Launch
+//     analytics can be added later with a dedicated log table.
+//
+//  5. Soft-delete pattern (deletedAt nullable) unchanged
+//     null = active, non-null = soft-deleted.
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// USER
+// Represents an authenticated account.
+// Owns Bookmarks, Profiles, and Collections directly.
+// ─────────────────────────────────────────────
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  password      String?   // bcrypt hashed password
+  name          String?
+  avatarUrl     String?
+  emailVerified DateTime? // NextAuth
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime? // soft-delete
+
+  profiles      Profile[]
+  bookmarks     Bookmark[]
+  collections   Collection[]
+  accounts      Account[]   // NextAuth
+  sessions      Session[]   // NextAuth
+
+  @@map("users")
+}
+
+// ─────────────────────────────────────────────
+// NEXTAUTH STANDARD MODELS
+// ─────────────────────────────────────────────
+
+model Account {
+  id                 String  @id @default(cuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String? @db.Text
+  access_token       String? @db.Text
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String? @db.Text
+  session_state      String?
+
+  user               User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// ─────────────────────────────────────────────
+// PROFILE
+// A named session preset. The user curates a list
+// of bookmarks and can launch them all at once in
+// a new window via "Open All".
+//
+// Profiles are soft-deletable. Deleting a profile
+// removes the curation (ProfileBookmark rows cascade)
+// but does NOT delete the underlying bookmarks from
+// the user's library.
+// ─────────────────────────────────────────────
+model Profile {
+  id         Int       @id @default(autoincrement())
+  name       String
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime? // soft-delete
+
+  userId     String
+  user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  bookmarks  ProfileBookmark[]
+
+  @@map("profiles")
+}
+
+// ─────────────────────────────────────────────
+// PROFILE <-> BOOKMARK  (many-to-many join)
+// A bookmark can be pinned to multiple profiles.
+// addedAt records when it was pinned.
+// Ordered by addedAt ascending when opening.
+// ─────────────────────────────────────────────
+model ProfileBookmark {
+  profileId  Int
+  bookmarkId Int
+  addedAt    DateTime @default(now())
+
+  profile    Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  bookmark   Bookmark @relation(fields: [bookmarkId], references: [id], onDelete: Cascade)
+
+  @@id([profileId, bookmarkId])
+  @@map("profile_bookmarks")
+}
+
+// ─────────────────────────────────────────────
+// BOOKMARK
+// Core entity. Owned directly by User (not Profile).
+// The user's global bookmark library.
+// ─────────────────────────────────────────────
+model Bookmark {
+  id          Int       @id @default(autoincrement())
+  title       String
+  url         String
+  description String?
+  faviconUrl  String?
+  visitCount  Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime? // soft-delete; null = active
+
+  userId      String
+  user        User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  tags        BookmarkTag[]
+  collections BookmarkCollection[]
+  visits      BookmarkVisit[]
+  profiles    ProfileBookmark[]
+
+  @@index([userId])
+  @@index([deletedAt])
+  @@index([createdAt])
+  @@map("bookmarks")
+}
+
+// ─────────────────────────────────────────────
+// TAG
+// Global, unique by name.
+// ─────────────────────────────────────────────
+model Tag {
+  id        Int           @id @default(autoincrement())
+  name      String        @unique
+  createdAt DateTime      @default(now())
+
+  bookmarks BookmarkTag[]
+
+  @@map("tags")
+}
+
+// ─────────────────────────────────────────────
+// BOOKMARK <-> TAG  (many-to-many join)
+// ─────────────────────────────────────────────
+model BookmarkTag {
+  bookmarkId Int
+  tagId      Int
+  assignedAt DateTime @default(now())
+
+  bookmark   Bookmark @relation(fields: [bookmarkId], references: [id], onDelete: Cascade)
+  tag        Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([bookmarkId, tagId])
+  @@map("bookmark_tags")
+}
+
+// ─────────────────────────────────────────────
+// COLLECTION
+// Owned directly by User (not Profile).
+// A named organizational group for bookmarks.
+// Distinct from Profiles: Collections are for
+// browsing/filtering, not for session launching.
+// ─────────────────────────────────────────────
+model Collection {
+  id          Int                  @id @default(autoincrement())
+  name        String
+  description String?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  userId      String
+  user        User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  bookmarks   BookmarkCollection[]
+
+  @@unique([name, userId])
+  @@map("collections")
+}
+
+// ─────────────────────────────────────────────
+// BOOKMARK <-> COLLECTION  (many-to-many join)
+// ─────────────────────────────────────────────
+model BookmarkCollection {
+  bookmarkId   Int
+  collectionId Int
+  addedAt      DateTime   @default(now())
+
+  bookmark     Bookmark   @relation(fields: [bookmarkId], references: [id], onDelete: Cascade)
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+
+  @@id([bookmarkId, collectionId])
+  @@map("bookmark_collections")
+}
+
+// ─────────────────────────────────────────────
+// BOOKMARK VISIT LOG
+// Individual visit records for time-based analytics.
+// visitCount on Bookmark is the denormalised total.
+// ─────────────────────────────────────────────
+model BookmarkVisit {
+  id         Int      @id @default(autoincrement())
+  visitedAt  DateTime @default(now())
+
+  bookmarkId Int
+  bookmark   Bookmark @relation(fields: [bookmarkId], references: [id], onDelete: Cascade)
+
+  @@index([bookmarkId])
+  @@index([visitedAt])
+  @@map("bookmark_visits")
+}
