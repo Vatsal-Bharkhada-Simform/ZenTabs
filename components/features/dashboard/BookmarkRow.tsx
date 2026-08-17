@@ -63,6 +63,7 @@ export function BookmarkRow({ bookmark, profiles = [], collections = [], allTags
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [tagPopoverOpen, setTagPopoverOpen] = useState(false);
   const [tagInput, setTagInput] = useState("");
+  const [tagHighlightIndex, setTagHighlightIndex] = useState<number>(-1);
   const [deletePending, startDelete] = useTransition();
   const [profilePending, startProfile] = useTransition();
   const [tagPending, startTag] = useTransition();
@@ -82,6 +83,7 @@ export function BookmarkRow({ bookmark, profiles = [], collections = [], allTags
       if (tagPopoverRef.current && !tagPopoverRef.current.contains(event.target as Node)) {
         setTagPopoverOpen(false);
         setTagInput("");
+        setTagHighlightIndex(-1);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -145,11 +147,24 @@ export function BookmarkRow({ bookmark, profiles = [], collections = [], allTags
     });
   };
 
+  const filteredInlineSuggestions = allTags
+    .filter(
+      (t) =>
+        tagInput.trim().length > 0 &&
+        t.name.includes(tagInput.toLowerCase().trim()) &&
+        !bookmark.tags.find((bt) => bt.tag.name === t.name)
+    )
+    .slice(0, 4);
+
   const handleAddTagInline = (name: string) => {
     const normalized = name.trim().toLowerCase().replace(/,/g, "");
     if (!normalized) return;
     const alreadyHas = bookmark.tags.find((bt) => bt.tag.name === normalized);
-    if (alreadyHas) { setTagInput(""); return; }
+    if (alreadyHas) {
+      setTagInput("");
+      setTagHighlightIndex(-1);
+      return;
+    }
     startTag(async () => {
       await startSync(async () => {
         const res = await addTagToBookmark(bookmark.id, normalized);
@@ -157,11 +172,43 @@ export function BookmarkRow({ bookmark, profiles = [], collections = [], allTags
           toast.success(`Tag "${normalized}" added`);
           setTagInput("");
           setTagPopoverOpen(false);
+          setTagHighlightIndex(-1);
         } else {
           toast.error(res.error || "Failed to add tag");
         }
       });
     });
+  };
+
+  const handleInlineTagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (filteredInlineSuggestions.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setTagHighlightIndex((prev) => (prev + 1) % filteredInlineSuggestions.length);
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setTagHighlightIndex((prev) =>
+          prev <= 0 ? filteredInlineSuggestions.length - 1 : prev - 1
+        );
+        return;
+      }
+    }
+
+    if (e.key === "Enter" || e.key === "," || (e.key === "Tab" && tagHighlightIndex >= 0)) {
+      e.preventDefault();
+      if (tagHighlightIndex >= 0 && tagHighlightIndex < filteredInlineSuggestions.length) {
+        handleAddTagInline(filteredInlineSuggestions[tagHighlightIndex].name);
+      } else if (tagInput.trim()) {
+        handleAddTagInline(tagInput);
+      }
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      setTagPopoverOpen(false);
+      setTagInput("");
+      setTagHighlightIndex(-1);
+    }
   };
 
   const domain = new URL(bookmark.url).hostname.replace(/^www\./, "");
@@ -223,6 +270,7 @@ export function BookmarkRow({ bookmark, profiles = [], collections = [], allTags
               type="button"
               onClick={() => {
                 setTagPopoverOpen((prev) => !prev);
+                setTagHighlightIndex(-1);
                 setTimeout(() => tagInputRef.current?.focus(), 50);
               }}
               className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-medium text-text-muted hover:text-text-secondary hover:bg-surface border border-dashed border-border-strong rounded transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
@@ -233,53 +281,71 @@ export function BookmarkRow({ bookmark, profiles = [], collections = [], allTags
             </button>
 
             {tagPopoverOpen && (
-              <div className="absolute left-0 top-full mt-1.5 z-50 w-44 bg-canvas border border-border-strong rounded-lg shadow-sm animate-in fade-in zoom-in-95 duration-100">
+              <div className="absolute left-0 top-full mt-1.5 z-50 w-48 bg-canvas border border-border-strong rounded-lg shadow-sm animate-in fade-in zoom-in-95 duration-100">
                 <div className="p-2">
                   <input
                     ref={tagInputRef}
                     type="text"
+                    role="combobox"
+                    aria-autocomplete="list"
+                    aria-expanded={filteredInlineSuggestions.length > 0}
+                    aria-controls={`inline-tag-list-${bookmark.id}`}
+                    aria-activedescendant={
+                      tagHighlightIndex >= 0 && filteredInlineSuggestions[tagHighlightIndex]
+                        ? `inline-tag-opt-${bookmark.id}-${filteredInlineSuggestions[tagHighlightIndex].id}`
+                        : undefined
+                    }
                     value={tagInput}
-                    onChange={(e) => setTagInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === ",") {
-                        e.preventDefault();
-                        if (tagInput.trim()) handleAddTagInline(tagInput);
-                      } else if (e.key === "Escape") {
-                        setTagPopoverOpen(false);
-                        setTagInput("");
-                      }
+                    onChange={(e) => {
+                      setTagInput(e.target.value);
+                      setTagHighlightIndex(-1);
                     }}
+                    onKeyDown={handleInlineTagKeyDown}
                     placeholder="tag name..."
                     disabled={tagPending}
                     className="w-full px-2 py-1.5 text-xs bg-surface border border-border-strong rounded text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-border-focus disabled:opacity-50"
                   />
                   {/* Suggestions */}
-                  {tagInput.trim().length > 0 && (
-                    <div className="mt-1 flex flex-col">
-                      {allTags
-                        .filter(
-                          (t) =>
-                            t.name.includes(tagInput.toLowerCase().trim()) &&
-                            !bookmark.tags.find((bt) => bt.tag.name === t.name)
-                        )
-                        .slice(0, 4)
-                        .map((t) => {
-                          const color = getTagColor(t.name);
-                          return (
-                            <button
-                              key={t.id}
-                              type="button"
-                              onMouseDown={(e) => { e.preventDefault(); handleAddTagInline(t.name); }}
-                              className="flex items-center gap-1.5 px-2 py-1 text-xs text-text-secondary hover:text-text-primary hover:bg-surface-alt rounded transition-colors text-left"
-                            >
+                  {filteredInlineSuggestions.length > 0 && (
+                    <div
+                      id={`inline-tag-list-${bookmark.id}`}
+                      role="listbox"
+                      aria-label="Tag suggestions"
+                      className="mt-1 flex flex-col gap-0.5"
+                    >
+                      {filteredInlineSuggestions.map((t, idx) => {
+                        const color = getTagColor(t.name);
+                        const isHighlighted = idx === tagHighlightIndex;
+                        return (
+                          <button
+                            key={t.id}
+                            id={`inline-tag-opt-${bookmark.id}-${t.id}`}
+                            role="option"
+                            aria-selected={isHighlighted}
+                            type="button"
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              handleAddTagInline(t.name);
+                            }}
+                            className={`flex items-center justify-between gap-1.5 px-2 py-1 text-xs rounded transition-all text-left ${
+                              isHighlighted
+                                ? "bg-surface text-text-primary font-semibold ring-1 ring-border-focus shadow-xs"
+                                : "text-text-secondary hover:text-text-primary hover:bg-surface-alt/70"
+                            }`}
+                          >
+                            <div className="flex items-center gap-1.5 min-w-0">
                               <span
                                 className="w-2 h-2 rounded-full shrink-0"
                                 style={{ backgroundColor: color.text }}
                               />
-                              {t.name}
-                            </button>
-                          );
-                        })}
+                              <span className="truncate">{t.name}</span>
+                            </div>
+                            {isHighlighted && (
+                              <span className="text-[9px] font-mono text-text-muted shrink-0">↵</span>
+                            )}
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
                 </div>

@@ -44,6 +44,7 @@ export function BookmarkModal({
   const [selectedTags, setSelectedTags] = useState<TagItem[]>(initialTags);
   const [tagInput, setTagInput] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [highlightIndex, setHighlightIndex] = useState<number>(-1);
   const [isPending, startTransition] = useTransition();
   const { startSync } = useSyncState();
   const tagInputRef = useRef<HTMLInputElement>(null);
@@ -55,6 +56,7 @@ export function BookmarkModal({
     setSelectedTags(bookmark?.tags?.map((bt) => bt.tag) ?? []);
     setTagInput("");
     setShowSuggestions(false);
+    setHighlightIndex(-1);
   }, [bookmark, isOpen]);
 
   // Escape to close / Ctrl+Enter to submit
@@ -87,12 +89,14 @@ export function BookmarkModal({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const filteredSuggestions = allTags.filter(
-    (t) =>
-      tagInput.trim().length > 0 &&
-      t.name.includes(tagInput.toLowerCase().trim()) &&
-      !selectedTags.find((s) => s.id === t.id)
-  );
+  const filteredSuggestions = allTags
+    .filter(
+      (t) =>
+        tagInput.trim().length > 0 &&
+        t.name.includes(tagInput.toLowerCase().trim()) &&
+        !selectedTags.find((s) => s.id === t.id)
+    )
+    .slice(0, 6);
 
   const addTag = useCallback(
     (name: string) => {
@@ -107,6 +111,7 @@ export function BookmarkModal({
       ]);
       setTagInput("");
       setShowSuggestions(false);
+      setHighlightIndex(-1);
     },
     [selectedTags, allTags]
   );
@@ -116,9 +121,36 @@ export function BookmarkModal({
   };
 
   const handleTagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" || e.key === ",") {
-      e.preventDefault();
-      if (tagInput.trim()) addTag(tagInput);
+    if (showSuggestions && filteredSuggestions.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setHighlightIndex((prev) => (prev + 1) % filteredSuggestions.length);
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setHighlightIndex((prev) =>
+          prev <= 0 ? filteredSuggestions.length - 1 : prev - 1
+        );
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        setShowSuggestions(false);
+        setHighlightIndex(-1);
+        return;
+      }
+    }
+
+    if (e.key === "Enter" || e.key === "," || (e.key === "Tab" && highlightIndex >= 0)) {
+      if (highlightIndex >= 0 && highlightIndex < filteredSuggestions.length) {
+        e.preventDefault();
+        addTag(filteredSuggestions[highlightIndex].name);
+      } else if (tagInput.trim()) {
+        e.preventDefault();
+        addTag(tagInput);
+      }
     } else if (e.key === "Backspace" && !tagInput && selectedTags.length > 0) {
       setSelectedTags((prev) => prev.slice(0, -1));
     }
@@ -258,16 +290,26 @@ export function BookmarkModal({
               <input
                 ref={tagInputRef}
                 type="text"
+                role="combobox"
+                aria-autocomplete="list"
+                aria-expanded={showSuggestions && filteredSuggestions.length > 0}
+                aria-controls="tag-suggestions-list"
+                aria-activedescendant={
+                  highlightIndex >= 0 && filteredSuggestions[highlightIndex]
+                    ? `tag-opt-${filteredSuggestions[highlightIndex].id}`
+                    : undefined
+                }
                 value={tagInput}
                 onChange={(e) => {
                   setTagInput(e.target.value);
                   setShowSuggestions(true);
+                  setHighlightIndex(-1);
                 }}
                 onKeyDown={handleTagKeyDown}
                 onFocus={() => setShowSuggestions(true)}
                 placeholder={selectedTags.length === 0 ? "Add tags..." : ""}
                 className="flex-1 min-w-[80px] text-sm bg-transparent text-text-primary placeholder:text-text-muted outline-none"
-                aria-label="Add tag"
+                aria-label="Add tags"
               />
             </div>
 
@@ -275,26 +317,42 @@ export function BookmarkModal({
             {showSuggestions && filteredSuggestions.length > 0 && (
               <div
                 ref={suggestionsRef}
+                id="tag-suggestions-list"
+                role="listbox"
+                aria-label="Tag suggestions"
                 className="bg-canvas border border-border-strong rounded-lg overflow-hidden animate-in fade-in zoom-in-95 duration-100"
               >
                 <div className="p-1 flex flex-col max-h-32 overflow-y-auto">
-                  {filteredSuggestions.slice(0, 6).map((tag) => {
+                  {filteredSuggestions.map((tag, idx) => {
                     const color = getTagColor(tag.name);
+                    const isHighlighted = idx === highlightIndex;
                     return (
                       <button
                         key={tag.id}
+                        id={`tag-opt-${tag.id}`}
+                        role="option"
+                        aria-selected={isHighlighted}
                         type="button"
                         onMouseDown={(e) => {
                           e.preventDefault();
                           addTag(tag.name);
                         }}
-                        className="flex items-center gap-2 px-2.5 py-1.5 text-sm text-text-secondary rounded hover:text-text-primary hover:bg-surface-alt transition-colors text-left"
+                        className={`flex items-center justify-between gap-2 px-2.5 py-1.5 text-sm rounded-md transition-all text-left ${
+                          isHighlighted
+                            ? "text-text-primary font-semibold bg-surface-alt ring-1 ring-border-focus"
+                            : "text-text-secondary hover:text-text-primary"
+                        }`}
                       >
-                        <span
-                          className="w-2 h-2 rounded-full shrink-0"
-                          style={{ backgroundColor: color.text }}
-                        />
-                        {tag.name}
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span
+                            className="w-2 h-2 rounded-full shrink-0"
+                            style={{ backgroundColor: color.text }}
+                          />
+                          <span className="truncate">{tag.name}</span>
+                        </div>
+                        {isHighlighted && (
+                          <span className="text-[10px] font-mono text-text-muted shrink-0">↵</span>
+                        )}
                       </button>
                     );
                   })}

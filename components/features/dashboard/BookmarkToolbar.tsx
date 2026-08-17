@@ -80,7 +80,7 @@ export function BookmarkToolbar({ activeTag = "" }: { activeTag?: string }) {
   ];
 
   return (
-    <div className="sticky top-16 z-30 flex flex-wrap items-center gap-2 py-3 px-4 md:px-8 bg-canvas/80 backdrop-blur-md border-b border-border-strong">
+    <div className="sticky top-0 z-20 flex flex-wrap items-center gap-2 py-3 px-4 md:px-8 bg-canvas/90 backdrop-blur-md border-b border-border-strong">
       <div className="relative flex-1 max-w-md min-w-40">
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
           <MagnifyingGlass size={18} className="text-text-secondary" />
