@@ -7,6 +7,8 @@ import { removeBookmarkFromProfile } from "@/lib/actions/profiles";
 import { openProfileUrls } from "@/lib/openProfile";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
+import { BookmarkPickerModal } from "@/components/features/dashboard/BookmarkPickerModal";
+import { BookmarkModal } from "@/components/features/dashboard/BookmarkModal";
 
 interface Bookmark {
   id: number;
@@ -167,6 +169,8 @@ function ProfileBookmarkRow({
 }
 
 export function ProfileDetailClient({ profile, bookmarks, urls }: ProfileDetailClientProps) {
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
   const activeBookmarks = bookmarks.filter((b) => !b.deletedAt);
 
   return (
@@ -191,14 +195,22 @@ export function ProfileDetailClient({ profile, bookmarks, urls }: ProfileDetailC
           </div>
         </div>
 
-        <button
-          onClick={() => openProfileUrls(urls)}
-          disabled={activeBookmarks.length === 0}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-text-primary bg-surface border border-border-strong rounded-lg hover:bg-surface-alt transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
-        >
-          <ArrowSquareOut size={15} weight="bold" />
-          Open all
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={() => setPickerOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-text-primary bg-text-secondary/10 border border-transparent rounded-md hover:bg-text-secondary/20 transition-colors"
+          >
+            Add existing
+          </button>
+          <button
+            onClick={() => openProfileUrls(urls)}
+            disabled={activeBookmarks.length === 0}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-text-primary bg-surface border border-border-strong rounded-lg hover:bg-surface-alt transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <ArrowSquareOut size={15} weight="bold" />
+            Open all
+          </button>
+        </div>
       </div>
 
       {/* Bookmark list */}
@@ -207,12 +219,16 @@ export function ProfileDetailClient({ profile, bookmarks, urls }: ProfileDetailC
           <div className="flex flex-col items-center justify-center py-32 px-4 text-center animate-in fade-in duration-500">
             <h3 className="text-base font-semibold text-text-primary mb-2">No bookmarks in this profile</h3>
             <p className="text-sm text-text-secondary max-w-sm mb-6">
-              Go to your{" "}
-              <Link href="/dashboard" className="underline underline-offset-4 hover:text-text-primary">
-                bookmark library
-              </Link>{" "}
-              and pin bookmarks to this profile using the bookmark menu.
+              You haven't added any bookmarks to this profile yet.
             </p>
+            <div className="flex gap-3">
+              <Button variant="secondary" onClick={() => setPickerOpen(true)}>
+                Add existing
+              </Button>
+              <Button onClick={() => setCreateOpen(true)}>
+                Create new
+              </Button>
+            </div>
           </div>
         ) : (
           <div className="flex flex-col bg-canvas">
@@ -222,6 +238,23 @@ export function ProfileDetailClient({ profile, bookmarks, urls }: ProfileDetailC
           </div>
         )}
       </div>
+
+      <BookmarkPickerModal
+        isOpen={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        contextType="profile"
+        contextId={profile.id}
+        initialSelectedIds={activeBookmarks.map((b) => b.id)}
+      />
+
+      {createOpen && (
+        <BookmarkModal
+          isOpen={true}
+          onClose={() => setCreateOpen(false)}
+          contextType="profile"
+          contextId={profile.id}
+        />
+      )}
     </div>
   );
 }

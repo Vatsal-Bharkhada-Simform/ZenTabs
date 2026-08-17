@@ -12,12 +12,29 @@ interface Profile {
   bookmarkIds: number[];
 }
 
+interface Collection {
+  id: number;
+  name: string;
+  bookmarkIds: number[];
+}
+
 interface BookmarkListProps {
   bookmarks: any[];
   profiles?: Profile[];
+  collections?: Collection[];
+  contextType?: "profile" | "collection";
+  contextId?: number;
+  onAddExisting?: () => void;
 }
 
-export function BookmarkList({ bookmarks, profiles = [] }: BookmarkListProps) {
+export function BookmarkList({
+  bookmarks,
+  profiles = [],
+  collections = [],
+  contextType,
+  contextId,
+  onAddExisting,
+}: BookmarkListProps) {
   const [addModalOpen, setAddModalOpen] = useState(false);
 
   return (
@@ -31,18 +48,30 @@ export function BookmarkList({ bookmarks, profiles = [] }: BookmarkListProps) {
           <p className="text-sm text-text-secondary max-w-sm mb-6">
             You haven&apos;t saved any bookmarks here yet, or none match your current search criteria.
           </p>
-          <Button onClick={() => setAddModalOpen(true)}>
-            Add your first bookmark
-          </Button>
+          <div className="flex gap-3 mt-4">
+            {onAddExisting && (
+              <Button variant="secondary" onClick={onAddExisting}>
+                Add existing
+              </Button>
+            )}
+            <Button onClick={() => setAddModalOpen(true)}>
+              {onAddExisting ? "Create new" : "Add your first bookmark"}
+            </Button>
+          </div>
 
           {addModalOpen && (
-            <BookmarkModal isOpen={true} onClose={() => setAddModalOpen(false)} />
+            <BookmarkModal
+              isOpen={true}
+              onClose={() => setAddModalOpen(false)}
+              contextType={contextType}
+              contextId={contextId}
+            />
           )}
         </div>
       ) : (
         <div className="flex flex-col bg-canvas">
           {bookmarks.map((b) => (
-            <BookmarkRow key={b.id} bookmark={b} profiles={profiles} />
+            <BookmarkRow key={b.id} bookmark={b} profiles={profiles} collections={collections} />
           ))}
         </div>
       )}

@@ -16,9 +16,11 @@ interface BookmarkModalProps {
     title: string;
     description: string | null;
   } | null;
+  contextType?: "profile" | "collection";
+  contextId?: number;
 }
 
-export function BookmarkModal({ isOpen, onClose, bookmark }: BookmarkModalProps) {
+export function BookmarkModal({ isOpen, onClose, bookmark, contextType, contextId }: BookmarkModalProps) {
   // Use update action if bookmark exists, otherwise create
   const action = bookmark ? updateBookmark : createBookmark;
   const [state, formAction, isPending] = useActionState(action, null);
@@ -46,7 +48,7 @@ export function BookmarkModal({ isOpen, onClose, bookmark }: BookmarkModalProps)
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-canvas/60 backdrop-blur-sm animate-in fade-in duration-200">
       <div 
-        className="w-full max-w-md bg-canvas border border-border-strong rounded-xl overflow-hidden shadow-sm animate-in zoom-in-95 duration-200"
+        className="w-full max-w-md text-left bg-canvas border border-border-strong rounded-xl overflow-hidden shadow-sm animate-in zoom-in-95 duration-200"
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"
@@ -66,6 +68,8 @@ export function BookmarkModal({ isOpen, onClose, bookmark }: BookmarkModalProps)
 
         <form action={formAction} className="p-6 space-y-5">
           {bookmark && <input type="hidden" name="id" value={bookmark.id} />}
+          {contextType && <input type="hidden" name="contextType" value={contextType} />}
+          {contextId && <input type="hidden" name="contextId" value={contextId} />}
           
           <Input 
             id="url"

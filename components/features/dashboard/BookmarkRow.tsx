@@ -11,6 +11,7 @@ import {
 } from "@phosphor-icons/react";
 import { deleteBookmark } from "@/lib/actions/bookmarks";
 import { addBookmarkToProfile, removeBookmarkFromProfile } from "@/lib/actions/profiles";
+import { addBookmarkToCollection, removeBookmarkFromCollection } from "@/lib/actions/collections";
 import { toast } from "sonner";
 import { BookmarkModal } from "./BookmarkModal";
 import { Button } from "@/components/ui/Button";
@@ -19,6 +20,12 @@ interface Profile {
   id: number;
   name: string;
   bookmarkIds: number[]; // IDs already in the profile
+}
+
+interface Collection {
+  id: number;
+  name: string;
+  bookmarkIds: number[]; // IDs already in the collection
 }
 
 interface BookmarkRowProps {
@@ -33,11 +40,13 @@ interface BookmarkRowProps {
     tags: { tag: { name: string } }[];
   };
   profiles?: Profile[];
+  collections?: Collection[];
 }
 
-export function BookmarkRow({ bookmark, profiles = [] }: BookmarkRowProps) {
+export function BookmarkRow({ bookmark, profiles = [], collections = [] }: BookmarkRowProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [collectionMenuOpen, setCollectionMenuOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deletePending, startDelete] = useTransition();
@@ -50,6 +59,7 @@ export function BookmarkRow({ bookmark, profiles = [] }: BookmarkRowProps) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setMenuOpen(false);
         setProfileMenuOpen(false);
+        setCollectionMenuOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -88,6 +98,21 @@ export function BookmarkRow({ bookmark, profiles = [] }: BookmarkRowProps) {
         toast.success(alreadyIn ? `Removed from "${profile.name}"` : `Added to "${profile.name}"`);
       } else {
         toast.error(res.error || "Failed to update profile");
+      }
+    });
+  };
+
+  const handleToggleCollection = (collection: Collection) => {
+    const alreadyIn = collection.bookmarkIds.includes(bookmark.id);
+    startProfile(async () => { // Reusing startProfile for transition state is fine here
+      const res = alreadyIn
+        ? await removeBookmarkFromCollection(collection.id, bookmark.id)
+        : await addBookmarkToCollection(collection.id, bookmark.id);
+
+      if (res.success) {
+        toast.success(alreadyIn ? `Removed from "${collection.name}"` : `Added to "${collection.name}"`);
+      } else {
+        toast.error(res.error || "Failed to update collection");
       }
     });
   };
@@ -151,7 +176,11 @@ export function BookmarkRow({ bookmark, profiles = [] }: BookmarkRowProps) {
 
           <div className="relative" ref={menuRef}>
             <button
-              onClick={() => { setMenuOpen(!menuOpen); setProfileMenuOpen(false); }}
+              onClick={() => {
+                setMenuOpen(!menuOpen);
+                setProfileMenuOpen(false);
+                setCollectionMenuOpen(false);
+              }}
               className="p-1.5 text-text-secondary hover:text-text-primary hover:bg-surface border border-transparent hover:border-border-strong rounded-md transition-all opacity-100 sm:opacity-0 group-hover:opacity-100 focus:opacity-100 outline-none"
               aria-label="Bookmark actions"
             >
@@ -172,12 +201,32 @@ export function BookmarkRow({ bookmark, profiles = [] }: BookmarkRowProps) {
                   {/* Add to Profile submenu trigger */}
                   {profiles.length > 0 && (
                     <button
-                      onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+                      onClick={() => {
+                        setProfileMenuOpen(!profileMenuOpen);
+                        setCollectionMenuOpen(false);
+                      }}
                       className="flex items-center justify-between gap-2 px-2 py-1.5 text-sm text-text-secondary rounded hover:text-text-primary hover:bg-surface transition-colors text-left w-full"
                     >
                       <span className="flex items-center gap-2">
                         <BookmarkSimple size={14} />
                         Add to profile
+                      </span>
+                      <span className="text-text-muted text-xs">›</span>
+                    </button>
+                  )}
+
+                  {/* Add to Collection submenu trigger */}
+                  {collections.length > 0 && (
+                    <button
+                      onClick={() => {
+                        setCollectionMenuOpen(!collectionMenuOpen);
+                        setProfileMenuOpen(false);
+                      }}
+                      className="flex items-center justify-between gap-2 px-2 py-1.5 text-sm text-text-secondary rounded hover:text-text-primary hover:bg-surface transition-colors text-left w-full"
+                    >
+                      <span className="flex items-center gap-2">
+                        <BookmarkSimple size={14} weight="duotone" />
+                        Add to collection
                       </span>
                       <span className="text-text-muted text-xs">›</span>
                     </button>
@@ -211,6 +260,31 @@ export function BookmarkRow({ bookmark, profiles = [] }: BookmarkRowProps) {
                             className="flex items-center justify-between gap-2 px-2 py-1.5 text-sm text-text-secondary rounded hover:text-text-primary hover:bg-surface transition-colors text-left w-full disabled:opacity-50"
                           >
                             <span className="truncate">{profile.name}</span>
+                            {isIn && <Check size={13} weight="bold" className="shrink-0 text-text-primary" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Collection submenu */}
+                {collectionMenuOpen && collections.length > 0 && (
+                  <div className="absolute right-full top-0 mr-1 w-44 bg-canvas border border-border-strong rounded-lg shadow-sm z-50 animate-in fade-in zoom-in-95 duration-100">
+                    <div className="p-1 flex flex-col">
+                      <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-widest text-text-muted">
+                        Collections
+                      </p>
+                      {collections.map((collection) => {
+                        const isIn = collection.bookmarkIds.includes(bookmark.id);
+                        return (
+                          <button
+                            key={collection.id}
+                            onClick={() => handleToggleCollection(collection)}
+                            disabled={profilePending}
+                            className="flex items-center justify-between gap-2 px-2 py-1.5 text-sm text-text-secondary rounded hover:text-text-primary hover:bg-surface transition-colors text-left w-full disabled:opacity-50"
+                          >
+                            <span className="truncate">{collection.name}</span>
                             {isIn && <Check size={13} weight="bold" className="shrink-0 text-text-primary" />}
                           </button>
                         );

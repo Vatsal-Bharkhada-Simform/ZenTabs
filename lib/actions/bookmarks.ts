@@ -21,6 +21,9 @@ export async function createBookmark(prevState: any, formData: FormData) {
   const url = formData.get("url") as string;
   let title = formData.get("title") as string;
   const description = formData.get("description") as string;
+  const contextType = formData.get("contextType") as string | null;
+  const contextIdStr = formData.get("contextId") as string | null;
+  const contextId = contextIdStr ? parseInt(contextIdStr, 10) : null;
 
   if (!url) return { error: "URL is required" };
 
@@ -37,17 +40,35 @@ export async function createBookmark(prevState: any, formData: FormData) {
       title = new URL(url).hostname;
     }
 
-    await prisma.bookmark.create({
-      data: {
-        userId: session.user.id,
-        url,
-        title,
-        description: description || null,
-        faviconUrl,
-      },
-    });
+    const bookmarkData = {
+      userId: session.user.id,
+      url,
+      title,
+      description: description || null,
+      faviconUrl,
+    };
+
+    if (contextType === "collection" && contextId) {
+      await prisma.$transaction(async (tx) => {
+        const bm = await tx.bookmark.create({ data: bookmarkData });
+        await tx.bookmarkCollection.create({
+          data: { bookmarkId: bm.id, collectionId: contextId },
+        });
+      });
+    } else if (contextType === "profile" && contextId) {
+      await prisma.$transaction(async (tx) => {
+        const bm = await tx.bookmark.create({ data: bookmarkData });
+        await tx.profileBookmark.create({
+          data: { bookmarkId: bm.id, profileId: contextId },
+        });
+      });
+    } else {
+      await prisma.bookmark.create({ data: bookmarkData });
+    }
 
     revalidatePath("/dashboard");
+    revalidatePath("/dashboard/collections");
+    revalidatePath("/dashboard/profiles");
     return { success: true };
   } catch (error) {
     console.error("Failed to create bookmark:", error);
@@ -187,5 +208,79 @@ export async function emptyTrash() {
   } catch (error) {
     console.error("Failed to empty trash:", error);
     return { error: "Failed to empty trash" };
+  }
+}
+
+export async function getSimpleLibrary() {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "Unauthorized", bookmarks: [] };
+
+  try {
+    const bookmarks = await prisma.bookmark.findMany({
+      where: { userId: session.user.id, deletedAt: null },
+      select: {
+        id: true,
+        title: true,
+        url: true,
+        faviconUrl: true,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    return { success: true, bookmarks };
+  } catch (error) {
+    console.error("Failed to fetch library:", error);
+    return { error: "Failed to fetch library", bookmarks: [] };
+  }
+}
+
+export async function syncContextBookmarks(
+  contextType: "collection" | "profile",
+  contextId: number,
+  bookmarkIds: number[]
+) {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "Unauthorized" };
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      if (contextType === "collection") {
+        // Clear existing
+        await tx.bookmarkCollection.deleteMany({
+          where: { collectionId: contextId },
+        });
+        // Insert new
+        if (bookmarkIds.length > 0) {
+          await tx.bookmarkCollection.createMany({
+            data: bookmarkIds.map((id) => ({
+              collectionId: contextId,
+              bookmarkId: id,
+            })),
+            skipDuplicates: true,
+          });
+        }
+      } else if (contextType === "profile") {
+        // Clear existing
+        await tx.profileBookmark.deleteMany({
+          where: { profileId: contextId },
+        });
+        // Insert new
+        if (bookmarkIds.length > 0) {
+          await tx.profileBookmark.createMany({
+            data: bookmarkIds.map((id) => ({
+              profileId: contextId,
+              bookmarkId: id,
+            })),
+            skipDuplicates: true,
+          });
+        }
+      }
+    });
+
+    revalidatePath("/dashboard/collections");
+    revalidatePath("/dashboard/profiles");
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to sync context bookmarks:", error);
+    return { error: "Failed to sync bookmarks" };
   }
 }
