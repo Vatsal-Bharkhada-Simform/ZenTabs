@@ -28,7 +28,7 @@ export function CollectionListSidebar({ collections, activeId }: CollectionListS
               Collections
             </h2>
             <p className="text-xs text-text-secondary mt-0.5">
-              {collections.length} {collections.length === 1 ? "folder" : "folders"}
+              {collections.length} {collections.length === 1 ? "collection" : "collections"}
             </p>
           </div>
           <button
@@ -71,8 +71,8 @@ export function CollectionListSidebar({ collections, activeId }: CollectionListS
                     <FolderOpen size={16} weight={isActive ? "fill" : "regular"} className="shrink-0" />
                     <span className="text-sm font-medium truncate">{collection.name}</span>
                   </div>
-                  <span className={`text-[10px] font-mono tabular-nums px-1.5 py-0.5 rounded-full ${
-                    isActive ? "bg-surface-alt text-text-secondary" : "bg-surface text-text-muted"
+                  <span className={`shrink-0 text-[10px] font-mono tabular-nums px-1.5 py-0.5 rounded ${
+                    isActive ? "bg-surface text-text-secondary border border-border-strong" : "text-text-muted"
                   }`}>
                     {collection.count}
                   </span>

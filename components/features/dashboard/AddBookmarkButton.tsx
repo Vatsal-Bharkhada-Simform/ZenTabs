@@ -5,7 +5,11 @@ import { Plus } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/Button";
 import { BookmarkModal } from "./BookmarkModal";
 
-export function AddBookmarkButton() {
+interface AddBookmarkButtonProps {
+  allTags?: { id: number; name: string }[];
+}
+
+export function AddBookmarkButton({ allTags = [] }: AddBookmarkButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -15,9 +19,9 @@ export function AddBookmarkButton() {
         <span className="hidden sm:inline">Add Bookmark</span>
         <span className="sm:hidden">Add</span>
       </Button>
-      
+
       {isOpen && (
-        <BookmarkModal isOpen={true} onClose={() => setIsOpen(false)} />
+        <BookmarkModal isOpen={true} onClose={() => setIsOpen(false)} allTags={allTags} />
       )}
     </>
   );

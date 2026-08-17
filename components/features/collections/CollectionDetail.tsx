@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { ArrowLeft, PencilSimple, Trash, Warning, FolderOpen } from "@phosphor-icons/react";
+import { ArrowLeft, PencilSimple, Trash, Warning, FolderOpen, Plus } from "@phosphor-icons/react";
 import { deleteCollection } from "@/lib/actions/collections";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
@@ -10,6 +10,7 @@ import { CreateCollectionModal } from "./CreateCollectionModal";
 import { BookmarkList } from "@/components/features/dashboard/BookmarkList";
 import { BookmarkToolbar } from "@/components/features/dashboard/BookmarkToolbar";
 import { BookmarkPickerModal } from "@/components/features/dashboard/BookmarkPickerModal";
+import { BookmarkModal } from "@/components/features/dashboard/BookmarkModal";
 import { useRouter } from "next/navigation";
 
 interface CollectionDetailProps {
@@ -18,15 +19,17 @@ interface CollectionDetailProps {
     name: string;
     description: string | null;
   };
-  bookmarks: any[]; // Matches the shape BookmarkList expects
+  bookmarks: any[];
   allProfiles: any[];
   allCollections: any[];
+  allTags?: { id: number; name: string }[];
 }
 
-export function CollectionDetail({ collection, bookmarks, allProfiles, allCollections }: CollectionDetailProps) {
+export function CollectionDetail({ collection, bookmarks, allProfiles, allCollections, allTags = [] }: CollectionDetailProps) {
   const router = useRouter();
   const [editOpen, setEditOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deletePending, startDelete] = useTransition();
 
@@ -73,9 +76,16 @@ export function CollectionDetail({ collection, bookmarks, allProfiles, allCollec
         <div className="flex items-center gap-2 shrink-0 self-end sm:self-start">
           <button
             onClick={() => setPickerOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-text-primary bg-text-secondary/10 border border-transparent rounded-md hover:bg-text-secondary/20 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-text-secondary bg-surface border border-border-strong rounded-md hover:text-text-primary hover:bg-surface-alt transition-colors"
           >
             Add existing
+          </button>
+          <button
+            onClick={() => setAddOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-text-primary bg-text-primary/5 border border-text-primary/10 rounded-md hover:bg-text-primary/10 transition-colors"
+          >
+            <Plus size={13} weight="bold" />
+            New bookmark
           </button>
           <button
             onClick={() => setEditOpen(true)}
@@ -86,7 +96,7 @@ export function CollectionDetail({ collection, bookmarks, allProfiles, allCollec
           </button>
           <button
             onClick={() => setDeleteModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-accent-red-text bg-accent-red-bg border border-accent-red-bg rounded-md hover:brightness-95 transition-all"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-accent-red-text bg-accent-red-bg border border-accent-red-text/20 rounded-md hover:brightness-95 transition-all"
           >
             <Trash size={14} />
             Delete
@@ -106,6 +116,7 @@ export function CollectionDetail({ collection, bookmarks, allProfiles, allCollec
           contextType="collection"
           contextId={collection.id}
           onAddExisting={() => setPickerOpen(true)}
+          allTags={allTags}
         />
       </div>
 
@@ -116,6 +127,15 @@ export function CollectionDetail({ collection, bookmarks, allProfiles, allCollec
         contextType="collection"
         contextId={collection.id}
         initialSelectedIds={bookmarks.map(b => b.id)}
+      />
+
+      {/* New Bookmark Modal */}
+      <BookmarkModal
+        isOpen={addOpen}
+        onClose={() => setAddOpen(false)}
+        contextType="collection"
+        contextId={collection.id}
+        allTags={allTags}
       />
 
       {/* Edit Modal */}
@@ -130,7 +150,7 @@ export function CollectionDetail({ collection, bookmarks, allProfiles, allCollec
       {/* Delete Modal */}
       {deleteModalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-canvas/60 backdrop-blur-sm animate-in fade-in duration-200"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm animate-in fade-in duration-200"
           onClick={(e) => { if (e.target === e.currentTarget) setDeleteModalOpen(false); }}
         >
           <div
@@ -161,7 +181,7 @@ export function CollectionDetail({ collection, bookmarks, allProfiles, allCollec
               <button
                 onClick={handleDelete}
                 disabled={deletePending}
-                className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-accent-red-text bg-accent-red-bg border border-accent-red-bg rounded-md hover:brightness-95 transition-all disabled:opacity-50 disabled:pointer-events-none"
+                className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-accent-red-text bg-accent-red-bg border border-accent-red-text/20 rounded-md hover:brightness-95 transition-all disabled:opacity-50 disabled:pointer-events-none"
               >
                 {deletePending ? "Deleting..." : "Delete collection"}
               </button>

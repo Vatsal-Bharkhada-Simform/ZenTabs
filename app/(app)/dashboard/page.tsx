@@ -20,6 +20,7 @@ export default async function DashboardPage(props: {
 
   const q = typeof searchParams.q === "string" ? searchParams.q : "";
   const sort = typeof searchParams.sort === "string" ? searchParams.sort : "date-desc";
+  const activeTag = typeof searchParams.tag === "string" ? searchParams.tag : "";
 
   // Build orderBy
   let orderBy: any = { createdAt: "desc" };
@@ -27,8 +28,8 @@ export default async function DashboardPage(props: {
   else if (sort === "name-asc") orderBy = { title: "asc" };
   else if (sort === "visits-desc") orderBy = { visitCount: "desc" };
 
-  // Fetch bookmarks and profiles in parallel
-  const [bookmarks, profiles] = await Promise.all([
+  // Fetch bookmarks, profiles, collections, and all tags in parallel
+  const [bookmarks, profiles, allCollectionsRaw, allTagsRaw] = await Promise.all([
     prisma.bookmark.findMany({
       where: {
         userId: session.user.id,
@@ -42,6 +43,13 @@ export default async function DashboardPage(props: {
               ],
             }
           : {}),
+        ...(activeTag
+          ? {
+              tags: {
+                some: { tag: { name: activeTag } },
+              },
+            }
+          : {}),
       },
       include: {
         tags: { include: { tag: true } },
@@ -50,19 +58,37 @@ export default async function DashboardPage(props: {
     }),
     prisma.profile.findMany({
       where: { userId: session.user.id, deletedAt: null },
-      include: {
-        bookmarks: { select: { bookmarkId: true } },
-      },
+      include: { bookmarks: { select: { bookmarkId: true } } },
       orderBy: { createdAt: "asc" },
+    }),
+    prisma.collection.findMany({
+      where: { userId: session.user.id },
+      include: { bookmarks: { select: { bookmarkId: true } } },
+      orderBy: { name: "asc" },
+    }),
+    prisma.tag.findMany({
+      where: {
+        bookmarks: {
+          some: { bookmark: { userId: session.user.id, deletedAt: null } },
+        },
+      },
+      orderBy: { name: "asc" },
     }),
   ]);
 
-  // Shape profiles for BookmarkRow's "Add to Profile" menu
   const profilesForRow = profiles.map((p) => ({
     id: p.id,
     name: p.name,
     bookmarkIds: p.bookmarks.map((pb) => pb.bookmarkId),
   }));
+
+  const collectionsForRow = allCollectionsRaw.map((c) => ({
+    id: c.id,
+    name: c.name,
+    bookmarkIds: c.bookmarks.map((bc) => bc.bookmarkId),
+  }));
+
+  const allTags = allTagsRaw.map((t) => ({ id: t.id, name: t.name }));
 
   return (
     <div className="flex flex-col min-h-full">
@@ -71,11 +97,16 @@ export default async function DashboardPage(props: {
           <h2 className="text-xl font-semibold text-text-primary tracking-tight">Bookmarks</h2>
           <p className="text-sm text-text-secondary mt-1">Manage your saved links and articles.</p>
         </div>
-        <AddBookmarkButton />
+        <AddBookmarkButton allTags={allTags} />
       </div>
 
-      <BookmarkToolbar />
-      <BookmarkList bookmarks={bookmarks} profiles={profilesForRow} />
+      <BookmarkToolbar activeTag={activeTag} />
+      <BookmarkList
+        bookmarks={bookmarks}
+        profiles={profilesForRow}
+        collections={collectionsForRow}
+        allTags={allTags}
+      />
     </div>
   );
 }

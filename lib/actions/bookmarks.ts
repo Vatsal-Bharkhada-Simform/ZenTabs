@@ -24,6 +24,7 @@ export async function createBookmark(prevState: any, formData: FormData) {
   const contextType = formData.get("contextType") as string | null;
   const contextIdStr = formData.get("contextId") as string | null;
   const contextId = contextIdStr ? parseInt(contextIdStr, 10) : null;
+  const tagNames = formData.getAll("tags").map((t) => String(t).trim().toLowerCase()).filter(Boolean);
 
   if (!url) return { error: "URL is required" };
 
@@ -54,6 +55,16 @@ export async function createBookmark(prevState: any, formData: FormData) {
         await tx.bookmarkCollection.create({
           data: { bookmarkId: bm.id, collectionId: contextId },
         });
+        if (tagNames.length > 0) {
+          for (const name of tagNames) {
+            const tag = await tx.tag.upsert({ where: { name }, create: { name }, update: {} });
+            await tx.bookmarkTag.upsert({
+              where: { bookmarkId_tagId: { bookmarkId: bm.id, tagId: tag.id } },
+              create: { bookmarkId: bm.id, tagId: tag.id },
+              update: {},
+            });
+          }
+        }
       });
     } else if (contextType === "profile" && contextId) {
       await prisma.$transaction(async (tx) => {
@@ -61,14 +72,38 @@ export async function createBookmark(prevState: any, formData: FormData) {
         await tx.profileBookmark.create({
           data: { bookmarkId: bm.id, profileId: contextId },
         });
+        if (tagNames.length > 0) {
+          for (const name of tagNames) {
+            const tag = await tx.tag.upsert({ where: { name }, create: { name }, update: {} });
+            await tx.bookmarkTag.upsert({
+              where: { bookmarkId_tagId: { bookmarkId: bm.id, tagId: tag.id } },
+              create: { bookmarkId: bm.id, tagId: tag.id },
+              update: {},
+            });
+          }
+        }
       });
     } else {
-      await prisma.bookmark.create({ data: bookmarkData });
+      await prisma.$transaction(async (tx) => {
+        const bm = await tx.bookmark.create({ data: bookmarkData });
+        if (tagNames.length > 0) {
+          for (const name of tagNames) {
+            const tag = await tx.tag.upsert({ where: { name }, create: { name }, update: {} });
+            await tx.bookmarkTag.upsert({
+              where: { bookmarkId_tagId: { bookmarkId: bm.id, tagId: tag.id } },
+              create: { bookmarkId: bm.id, tagId: tag.id },
+              update: {},
+            });
+          }
+        }
+      });
     }
 
     revalidatePath("/dashboard");
     revalidatePath("/dashboard/collections");
     revalidatePath("/dashboard/profiles");
+    revalidatePath("/dashboard/tags");
+    revalidatePath("/dashboard/trash");
     return { success: true };
   } catch (error) {
     console.error("Failed to create bookmark:", error);
@@ -85,6 +120,8 @@ export async function updateBookmark(prevState: any, formData: FormData) {
   const url = formData.get("url") as string;
   const title = formData.get("title") as string;
   const description = formData.get("description") as string;
+  const syncTags = formData.get("syncTags") === "true";
+  const tagNames = formData.getAll("tags").map((t) => String(t).trim().toLowerCase()).filter(Boolean);
 
   if (isNaN(id) || !url || !title) return { error: "Missing required fields" };
 
@@ -103,17 +140,60 @@ export async function updateBookmark(prevState: any, formData: FormData) {
 
     const faviconUrl = url !== bookmark.url ? getFaviconUrl(url) : bookmark.faviconUrl;
 
-    await prisma.bookmark.update({
-      where: { id },
-      data: {
-        url,
-        title,
-        description: description || null,
-        faviconUrl,
-      },
+    await prisma.$transaction(async (tx) => {
+      await tx.bookmark.update({
+        where: { id },
+        data: {
+          url,
+          title,
+          description: description || null,
+          faviconUrl,
+        },
+      });
+
+      // Synchronize tags atomically if syncTags flag is present
+      if (syncTags) {
+        const currentRelations = await tx.bookmarkTag.findMany({
+          where: { bookmarkId: id },
+          include: { tag: true },
+        });
+        const currentTagNames = new Set(currentRelations.map((r) => r.tag.name));
+        const targetTagNames = new Set(tagNames);
+
+        // Delete removed tags
+        const relationsToDelete = currentRelations.filter((r) => !targetTagNames.has(r.tag.name));
+        if (relationsToDelete.length > 0) {
+          await tx.bookmarkTag.deleteMany({
+            where: {
+              bookmarkId: id,
+              tagId: { in: relationsToDelete.map((r) => r.tagId) },
+            },
+          });
+        }
+
+        // Add new tags
+        for (const name of tagNames) {
+          if (!currentTagNames.has(name)) {
+            const tag = await tx.tag.upsert({
+              where: { name },
+              create: { name },
+              update: {},
+            });
+            await tx.bookmarkTag.upsert({
+              where: { bookmarkId_tagId: { bookmarkId: id, tagId: tag.id } },
+              create: { bookmarkId: id, tagId: tag.id },
+              update: {},
+            });
+          }
+        }
+      }
     });
 
     revalidatePath("/dashboard");
+    revalidatePath("/dashboard/collections");
+    revalidatePath("/dashboard/profiles");
+    revalidatePath("/dashboard/tags");
+    revalidatePath("/dashboard/trash");
     return { success: true };
   } catch (error) {
     console.error("Failed to update bookmark:", error);
@@ -138,6 +218,10 @@ export async function deleteBookmark(id: number) {
     });
 
     revalidatePath("/dashboard");
+    revalidatePath("/dashboard/collections");
+    revalidatePath("/dashboard/profiles");
+    revalidatePath("/dashboard/tags");
+    revalidatePath("/dashboard/trash");
     return { success: true };
   } catch (error) {
     console.error("Failed to delete bookmark:", error);
@@ -162,6 +246,9 @@ export async function restoreBookmark(id: number) {
     });
 
     revalidatePath("/dashboard");
+    revalidatePath("/dashboard/collections");
+    revalidatePath("/dashboard/profiles");
+    revalidatePath("/dashboard/tags");
     revalidatePath("/dashboard/trash");
     return { success: true };
   } catch (error) {
@@ -183,6 +270,10 @@ export async function hardDeleteBookmark(id: number) {
 
     await prisma.bookmark.delete({ where: { id } });
 
+    revalidatePath("/dashboard");
+    revalidatePath("/dashboard/collections");
+    revalidatePath("/dashboard/profiles");
+    revalidatePath("/dashboard/tags");
     revalidatePath("/dashboard/trash");
     return { success: true };
   } catch (error) {
@@ -203,6 +294,7 @@ export async function emptyTrash() {
       },
     });
 
+    revalidatePath("/dashboard");
     revalidatePath("/dashboard/trash");
     return { success: true };
   } catch (error) {

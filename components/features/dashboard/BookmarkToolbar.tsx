@@ -2,10 +2,10 @@
 
 import { useTransition, useState, useEffect, useRef } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { MagnifyingGlass, SortAscending } from "@phosphor-icons/react";
+import { MagnifyingGlass, SortAscending, Tag, X } from "@phosphor-icons/react";
 import { Input } from "@/components/ui/Input";
 
-export function BookmarkToolbar() {
+export function BookmarkToolbar({ activeTag = "" }: { activeTag?: string }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -37,6 +37,14 @@ export function BookmarkToolbar() {
 
     return () => clearTimeout(timer);
   }, [searchTerm, pathname, router, searchParams]);
+
+  const clearTag = () => {
+    const params = new URLSearchParams(searchParams);
+    params.delete("tag");
+    startTransition(() => {
+      router.push(`${pathname}?${params.toString()}`);
+    });
+  };
 
   // Handle Sort
   const handleSort = (sortValue: string) => {
@@ -72,8 +80,8 @@ export function BookmarkToolbar() {
   ];
 
   return (
-    <div className="sticky top-16 z-30 flex items-center justify-between gap-4 py-3 px-4 md:px-8 bg-canvas/80 backdrop-blur-md border-b border-border-strong">
-      <div className="relative flex-1 max-w-md">
+    <div className="sticky top-16 z-30 flex flex-wrap items-center gap-2 py-3 px-4 md:px-8 bg-canvas/80 backdrop-blur-md border-b border-border-strong">
+      <div className="relative flex-1 max-w-md min-w-40">
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
           <MagnifyingGlass size={18} className="text-text-secondary" />
         </div>
@@ -91,7 +99,22 @@ export function BookmarkToolbar() {
         )}
       </div>
 
-      <div className="relative" ref={sortRef}>
+      {/* Active tag filter pill */}
+      {activeTag && (
+        <span className="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 text-xs font-medium text-text-primary bg-surface-alt border border-border-strong rounded-full whitespace-nowrap">
+          <Tag size={10} weight="bold" className="text-text-secondary" />
+          {activeTag}
+          <button
+            onClick={clearTag}
+            className="ml-0.5 p-0.5 rounded-full text-text-muted hover:text-text-primary hover:bg-border-strong transition-colors"
+            aria-label="Clear tag filter"
+          >
+            <X size={10} weight="bold" />
+          </button>
+        </span>
+      )}
+
+      <div className="relative ml-auto" ref={sortRef}>
         <button
           onClick={() => setSortOpen(!sortOpen)}
           className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-text-secondary bg-surface-alt border border-border-strong rounded-md hover:text-text-primary hover:bg-surface transition-colors focus:outline-none"
@@ -110,7 +133,7 @@ export function BookmarkToolbar() {
                   className={`block w-full text-left px-3 py-1.5 text-sm rounded transition-colors ${
                     currentSort === opt.value
                       ? "bg-surface text-text-primary font-medium"
-                      : "text-text-secondary hover:text-text-primary hover:bg-surface"
+                      : "text-text-secondary hover:text-text-primary hover:bg-surface-alt"
                   }`}
                 >
                   {opt.label}

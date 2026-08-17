@@ -33,7 +33,7 @@ export function Sidebar({ profiles }: SidebarProps) {
       <div className="flex items-center h-16 px-6 border-b border-border-strong shrink-0">
         <Link
           href="/dashboard"
-          className="text-sm md:text-xl font-bold tracking-tight text-text-primary hover:opacity-70 transition-opacity"
+          className="text-base font-bold tracking-tight text-text-primary hover:opacity-70 transition-opacity"
         >
           ZenTabs
         </Link>
@@ -69,7 +69,7 @@ export function Sidebar({ profiles }: SidebarProps) {
         {/* Profiles panel */}
         <div className="mt-6 px-4">
           <div className="flex items-center justify-between mb-2 px-1">
-            <span className="text-[11px] font-semibold uppercase tracking-widest text-text-muted">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-text-muted">
               Profiles
             </span>
             <Link
@@ -138,10 +138,9 @@ export function Sidebar({ profiles }: SidebarProps) {
           {/* Link to profile management */}
           <Link
             href="/dashboard/profiles"
-            className="mt-3 flex items-center justify-center gap-1.5 w-full py-1.5 text-xs font-medium text-text-muted hover:text-text-primary border border-dashed border-border-strong rounded-md transition-colors"
+            className="mt-3 flex items-center justify-center gap-1.5 w-full py-1.5 text-xs font-medium text-text-muted hover:text-text-secondary transition-colors"
           >
-            <Plus size={12} weight="bold" />
-            New profile
+            + New profile
           </Link>
         </div>
       </nav>

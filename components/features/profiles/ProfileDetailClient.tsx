@@ -5,10 +5,12 @@ import Link from "next/link";
 import { ArrowSquareOut, ArrowLeft, X, Warning } from "@phosphor-icons/react";
 import { removeBookmarkFromProfile } from "@/lib/actions/profiles";
 import { openProfileUrls } from "@/lib/openProfile";
+import { getTagColor } from "@/lib/tagColor";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { BookmarkPickerModal } from "@/components/features/dashboard/BookmarkPickerModal";
 import { BookmarkModal } from "@/components/features/dashboard/BookmarkModal";
+import { useSyncState } from "@/components/features/dashboard/SyncContext";
 
 interface Bookmark {
   id: number;
@@ -37,6 +39,7 @@ function ProfileBookmarkRow({
 }) {
   const [removeModalOpen, setRemoveModalOpen] = useState(false);
   const [removePending, startRemove] = useTransition();
+  const { startSync } = useSyncState();
 
   const domain = (() => {
     try {
@@ -48,13 +51,15 @@ function ProfileBookmarkRow({
 
   const handleRemove = () => {
     startRemove(async () => {
-      const res = await removeBookmarkFromProfile(profileId, bookmark.id);
-      setRemoveModalOpen(false);
-      if (res.success) {
-        toast.success("Removed from profile");
-      } else {
-        toast.error(res.error || "Failed to remove bookmark");
-      }
+      await startSync(async () => {
+        const res = await removeBookmarkFromProfile(profileId, bookmark.id);
+        setRemoveModalOpen(false);
+        if (res.success) {
+          toast.success("Removed from profile");
+        } else {
+          toast.error(res.error || "Failed to remove bookmark");
+        }
+      });
     });
   };
 
@@ -89,16 +94,24 @@ function ProfileBookmarkRow({
         </div>
 
         {/* Middle: Tags */}
-        <div className="hidden sm:flex items-center gap-1.5 w-48 shrink-0 overflow-x-auto no-scrollbar">
+        <div className="hidden sm:flex items-center gap-1.5 w-72 shrink-0">
           {bookmark.tags.length > 0 ? (
-            bookmark.tags.slice(0, 3).map((t) => (
-              <span
-                key={t.tag.name}
-                className="px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-text-secondary bg-surface border border-border-strong rounded-sm whitespace-nowrap"
-              >
-                {t.tag.name}
-              </span>
-            ))
+            bookmark.tags.slice(0, 3).map((t) => {
+              const color = getTagColor(t.tag.name);
+              return (
+                <span
+                  key={t.tag.name}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded whitespace-nowrap"
+                  style={{
+                    backgroundColor: color.bg,
+                    color: color.text,
+                    border: `1px solid ${color.border}`,
+                  }}
+                >
+                  {t.tag.name}
+                </span>
+              );
+            })
           ) : (
             <span className="text-xs text-text-secondary/50 italic">—</span>
           )}
@@ -120,7 +133,7 @@ function ProfileBookmarkRow({
       {/* Remove Confirmation Modal */}
       {removeModalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-canvas/60 backdrop-blur-sm animate-in fade-in duration-200"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm animate-in fade-in duration-200"
           onClick={(e) => { if (e.target === e.currentTarget) setRemoveModalOpen(false); }}
         >
           <div
@@ -151,7 +164,7 @@ function ProfileBookmarkRow({
               <button
                 onClick={handleRemove}
                 disabled={removePending}
-                className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-accent-red-text bg-accent-red-bg border border-accent-red-bg rounded-md hover:brightness-95 transition-all disabled:opacity-50 disabled:pointer-events-none"
+                className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-accent-red-text bg-accent-red-bg border border-accent-red-text/20 rounded-md hover:brightness-95 transition-all disabled:opacity-50 disabled:pointer-events-none"
               >
                 {removePending ? (
                   <span className="flex items-center gap-1.5">
@@ -171,6 +184,7 @@ function ProfileBookmarkRow({
 export function ProfileDetailClient({ profile, bookmarks, urls }: ProfileDetailClientProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const { isSyncing } = useSyncState();
   const activeBookmarks = bookmarks.filter((b) => !b.deletedAt);
 
   return (
@@ -214,7 +228,11 @@ export function ProfileDetailClient({ profile, bookmarks, urls }: ProfileDetailC
       </div>
 
       {/* Bookmark list */}
-      <div className="border-t border-border-strong">
+      <div
+        className={`border-t border-border-strong transition-opacity duration-200 ${
+          isSyncing ? "opacity-60 pointer-events-none" : "opacity-100"
+        }`}
+      >
         {activeBookmarks.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-32 px-4 text-center animate-in fade-in duration-500">
             <h3 className="text-base font-semibold text-text-primary mb-2">No bookmarks in this profile</h3>

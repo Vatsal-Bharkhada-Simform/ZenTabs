@@ -134,7 +134,7 @@ export function AuthShell({
         />
 
         {/* Top bar: wordmark + back link */}
-        <div className="flex items-center justify-between px-10 lg:px-14 pt-9 pb-8">
+        <div className="flex items-center justify-between px-10 lg:px-14 pt-7 pb-6">
           <Link
             href="/"
             className="text-sm font-bold tracking-tight text-text-primary hover:opacity-70 transition-opacity"
@@ -184,7 +184,7 @@ export function AuthShell({
         </div>
 
         {/* Bottom: alternate action link */}
-        <div className="px-10 lg:px-14 pb-10">
+        <div className="px-10 lg:px-14 pb-9">
           <p className="text-sm text-text-secondary">
             {altLinkPrefix}{" "}
             <Link

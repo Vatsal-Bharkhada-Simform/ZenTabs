@@ -3,6 +3,7 @@
 import { TrashRow } from "./TrashRow";
 import { Trash } from "@phosphor-icons/react";
 import Link from "next/link";
+import { useSyncState } from "@/components/features/dashboard/SyncContext";
 
 interface TrashListProps {
   bookmarks: {
@@ -17,11 +18,17 @@ interface TrashListProps {
 }
 
 export function TrashList({ bookmarks }: TrashListProps) {
+  const { isSyncing } = useSyncState();
+
   return (
     // Outer wrapper always renders the border-t so it never flickers during
     // the empty-state fade-in animation (opacity:0 on the inner content
     // would still cause a visible border flash if border were on the animated element).
-    <div className="border-t border-border-strong">
+    <div
+      className={`border-t border-border-strong transition-opacity duration-200 ${
+        isSyncing ? "opacity-60 pointer-events-none" : "opacity-100"
+      }`}
+    >
       {bookmarks.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-32 px-4 text-center animate-in fade-in duration-500">
           <div className="w-16 h-16 flex items-center justify-center bg-surface-alt border border-border-strong rounded-2xl mb-6">

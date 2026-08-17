@@ -3,6 +3,8 @@
 import { useState, useRef, useEffect, useTransition } from "react";
 import { ArrowCounterClockwise, TrashSimple } from "@phosphor-icons/react";
 import { restoreBookmark, hardDeleteBookmark } from "@/lib/actions/bookmarks";
+import { getTagColor } from "@/lib/tagColor";
+import { useSyncState } from "@/components/features/dashboard/SyncContext";
 import { toast } from "sonner";
 
 interface TrashRowProps {
@@ -20,6 +22,7 @@ interface TrashRowProps {
 export function TrashRow({ bookmark }: TrashRowProps) {
   const [restorePending, startRestore] = useTransition();
   const [deletePending, startDelete] = useTransition();
+  const { startSync } = useSyncState();
 
   const domain = (() => {
     try {
@@ -37,23 +40,27 @@ export function TrashRow({ bookmark }: TrashRowProps) {
 
   const handleRestore = () => {
     startRestore(async () => {
-      const res = await restoreBookmark(bookmark.id);
-      if (res.success) {
-        toast.success("Bookmark restored");
-      } else {
-        toast.error(res.error || "Failed to restore bookmark");
-      }
+      await startSync(async () => {
+        const res = await restoreBookmark(bookmark.id);
+        if (res.success) {
+          toast.success("Bookmark restored");
+        } else {
+          toast.error(res.error || "Failed to restore bookmark");
+        }
+      });
     });
   };
 
   const handleHardDelete = () => {
     startDelete(async () => {
-      const res = await hardDeleteBookmark(bookmark.id);
-      if (res.success) {
-        toast.success("Bookmark permanently deleted");
-      } else {
-        toast.error(res.error || "Failed to delete bookmark");
-      }
+      await startSync(async () => {
+        const res = await hardDeleteBookmark(bookmark.id);
+        if (res.success) {
+          toast.success("Bookmark permanently deleted");
+        } else {
+          toast.error(res.error || "Failed to delete bookmark");
+        }
+      });
     });
   };
 
@@ -86,16 +93,24 @@ export function TrashRow({ bookmark }: TrashRowProps) {
       </div>
 
       {/* Middle: Tags (Desktop) */}
-      <div className="hidden sm:flex items-center gap-1.5 w-48 shrink-0 overflow-x-auto no-scrollbar">
+      <div className="hidden sm:flex items-center gap-1.5 w-72 shrink-0">
         {bookmark.tags.length > 0 ? (
-          bookmark.tags.slice(0, 3).map((t) => (
-            <span
-              key={t.tag.name}
-              className="px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-text-muted bg-surface border border-border-strong rounded-sm whitespace-nowrap opacity-60"
-            >
-              {t.tag.name}
-            </span>
-          ))
+          bookmark.tags.slice(0, 3).map((t) => {
+            const color = getTagColor(t.tag.name);
+            return (
+              <span
+                key={t.tag.name}
+                className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded whitespace-nowrap opacity-50"
+                style={{
+                  backgroundColor: color.bg,
+                  color: color.text,
+                  border: `1px solid ${color.border}`,
+                }}
+              >
+                {t.tag.name}
+              </span>
+            );
+          })
         ) : (
           <span className="text-xs text-text-muted/50 italic">—</span>
         )}
@@ -124,7 +139,7 @@ export function TrashRow({ bookmark }: TrashRowProps) {
             onClick={handleHardDelete}
             disabled={isPending}
             title="Delete forever"
-            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-accent-red-text bg-accent-red-bg border border-accent-red-bg rounded-md hover:brightness-95 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-red-text/30"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-accent-red-text bg-accent-red-bg border border-accent-red-text/20 rounded-md hover:brightness-95 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-red-text/30"
           >
             <TrashSimple size={13} weight="bold" />
             <span className="hidden sm:inline">Delete forever</span>

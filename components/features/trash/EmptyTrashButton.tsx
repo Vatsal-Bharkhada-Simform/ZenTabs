@@ -41,7 +41,7 @@ export function EmptyTrashButton({ count }: EmptyTrashButtonProps) {
     <>
       <button
         onClick={() => setModalOpen(true)}
-        className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-accent-red-text bg-accent-red-bg border border-accent-red-bg rounded-md hover:brightness-95 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-red-text/30"
+        className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-accent-red-text bg-accent-red-bg border border-accent-red-text/20 rounded-md hover:brightness-95 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-red-text/30"
       >
         <TrashSimple size={14} weight="bold" />
         Empty Trash
@@ -50,7 +50,7 @@ export function EmptyTrashButton({ count }: EmptyTrashButtonProps) {
       {/* Confirmation Modal */}
       {modalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-canvas/60 backdrop-blur-sm animate-in fade-in duration-200"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm animate-in fade-in duration-200"
           onClick={(e) => {
             if (e.target === e.currentTarget) setModalOpen(false);
           }}
@@ -98,7 +98,7 @@ export function EmptyTrashButton({ count }: EmptyTrashButtonProps) {
               <button
                 onClick={handleConfirm}
                 disabled={isPending}
-                className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-accent-red-text bg-accent-red-bg border border-accent-red-bg rounded-md hover:brightness-95 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-red-text/30 disabled:opacity-50 disabled:pointer-events-none"
+                className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-accent-red-text bg-accent-red-bg border border-accent-red-text/20 rounded-md hover:brightness-95 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-red-text/30 disabled:opacity-50 disabled:pointer-events-none"
               >
                 {isPending ? (
                   <span className="flex items-center gap-1.5">

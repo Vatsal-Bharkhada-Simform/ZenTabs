@@ -73,7 +73,7 @@ export function UserMenu({ user }: UserMenuProps) {
             <Link
               href="/dashboard/settings"
               onClick={() => setIsOpen(false)}
-              className="flex items-center gap-2 px-2 py-1.5 text-sm text-text-secondary rounded hover:text-text-primary hover:bg-surface transition-colors"
+              className="flex items-center gap-2 px-2 py-1.5 text-sm text-text-secondary rounded hover:text-text-primary hover:bg-surface-alt transition-colors"
             >
               <Gear size={16} />
               Settings
@@ -83,7 +83,7 @@ export function UserMenu({ user }: UserMenuProps) {
           <div className="p-1 border-t border-border-strong">
             <button
               onClick={() => signOut({ callbackUrl: "/" })}
-              className="flex items-center gap-2 w-full px-2 py-1.5 text-sm text-text-secondary rounded hover:text-text-primary hover:bg-surface transition-colors text-left"
+              className="flex items-center gap-2 w-full px-2 py-1.5 text-sm text-text-secondary rounded hover:text-text-primary hover:bg-surface-alt transition-colors text-left"
             >
               <SignOut size={16} />
               Sign out

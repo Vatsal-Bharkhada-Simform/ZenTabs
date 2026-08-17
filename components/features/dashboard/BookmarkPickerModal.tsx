@@ -6,6 +6,7 @@ import { getSimpleLibrary, syncContextBookmarks } from "@/lib/actions/bookmarks"
 import { Button } from "@/components/ui/Button";
 import { toast } from "sonner";
 import Image from "next/image";
+import { useSyncState } from "@/components/features/dashboard/SyncContext";
 
 interface BookmarkPickerModalProps {
   isOpen: boolean;
@@ -27,6 +28,7 @@ export function BookmarkPickerModal({
   const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set(initialSelectedIds));
   const [isPending, startTransition] = useTransition();
+  const { startSync } = useSyncState();
 
   useEffect(() => {
     if (isOpen) {
@@ -67,18 +69,20 @@ export function BookmarkPickerModal({
 
   const handleSave = () => {
     startTransition(async () => {
-      const res = await syncContextBookmarks(contextType, contextId, Array.from(selectedIds));
-      if (res.success) {
-        toast.success("Bookmarks updated");
-        onClose();
-      } else {
-        toast.error(res.error || "Failed to update bookmarks");
-      }
+      await startSync(async () => {
+        const res = await syncContextBookmarks(contextType, contextId, Array.from(selectedIds));
+        if (res.success) {
+          toast.success("Bookmarks updated");
+          onClose();
+        } else {
+          toast.error(res.error || "Failed to update bookmarks");
+        }
+      });
     });
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-canvas/60 backdrop-blur-sm animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm animate-in fade-in duration-200">
       <div
         className="w-full max-w-xl text-left bg-canvas border border-border-strong rounded-xl overflow-hidden shadow-sm flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200"
         role="dialog"

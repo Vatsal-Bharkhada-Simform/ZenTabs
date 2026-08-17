@@ -27,7 +27,7 @@ export default async function CollectionsPage(props: {
   else if (sort === "visits-desc") orderBy = { visitCount: "desc" };
 
   // Fetch all collections for the sidebar, and global profiles/collections for BookmarkRow menus
-  const [allCollectionsRaw, allProfilesRaw] = await Promise.all([
+  const [allCollectionsRaw, allProfilesRaw, allTagsRaw] = await Promise.all([
     prisma.collection.findMany({
       where: { userId: session.user.id },
       include: {
@@ -42,7 +42,17 @@ export default async function CollectionsPage(props: {
       },
       orderBy: { name: "asc" },
     }),
+    prisma.tag.findMany({
+      where: {
+        bookmarks: {
+          some: { bookmark: { userId: session.user.id, deletedAt: null } },
+        },
+      },
+      orderBy: { name: "asc" },
+    }),
   ]);
+
+  const allTags = allTagsRaw.map((t) => ({ id: t.id, name: t.name }));
 
   const collectionsForSidebar = allCollectionsRaw.map((c) => ({
     id: c.id,
@@ -134,6 +144,7 @@ export default async function CollectionsPage(props: {
             bookmarks={bookmarks}
             allProfiles={allProfiles}
             allCollections={allCollections}
+            allTags={allTags}
           />
         ) : (
           <CollectionDetailEmpty />

@@ -5,6 +5,7 @@ import { BookmarkSimple } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/Button";
 import { useState } from "react";
 import { BookmarkModal } from "./BookmarkModal";
+import { useSyncState } from "./SyncContext";
 
 interface Profile {
   id: number;
@@ -25,6 +26,7 @@ interface BookmarkListProps {
   contextType?: "profile" | "collection";
   contextId?: number;
   onAddExisting?: () => void;
+  allTags?: { id: number; name: string }[];
 }
 
 export function BookmarkList({
@@ -34,11 +36,17 @@ export function BookmarkList({
   contextType,
   contextId,
   onAddExisting,
+  allTags = [],
 }: BookmarkListProps) {
   const [addModalOpen, setAddModalOpen] = useState(false);
+  const { isSyncing } = useSyncState();
 
   return (
-    <div className="border-t border-border-strong">
+    <div
+      className={`border-t border-border-strong transition-opacity duration-200 ${
+        isSyncing ? "opacity-60 pointer-events-none" : "opacity-100"
+      }`}
+    >
       {bookmarks.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-32 px-4 text-center animate-in fade-in duration-500">
           <div className="w-16 h-16 flex items-center justify-center bg-surface-alt border border-border-strong rounded-2xl mb-6">
@@ -65,13 +73,14 @@ export function BookmarkList({
               onClose={() => setAddModalOpen(false)}
               contextType={contextType}
               contextId={contextId}
+              allTags={allTags}
             />
           )}
         </div>
       ) : (
         <div className="flex flex-col bg-canvas">
           {bookmarks.map((b) => (
-            <BookmarkRow key={b.id} bookmark={b} profiles={profiles} collections={collections} />
+            <BookmarkRow key={b.id} bookmark={b} profiles={profiles} collections={collections} allTags={allTags} />
           ))}
         </div>
       )}

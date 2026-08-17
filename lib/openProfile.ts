@@ -1,36 +1,41 @@
 import { toast } from "sonner";
 
 /**
- * Opens all URLs in new tabs.
+ * Opens all URLs of a profile collectively in a NEW browser window.
  *
- * MUST be called synchronously from a user gesture (click handler) — browsers
- * block window.open() calls that happen after an await.
- *
- * If the browser blocks the first popup, we show a toast guiding the user to
- * allow popups for this site, then abort — no point trying the rest.
+ * It creates a dedicated browser window running the launcher route,
+ * which opens subsequent tabs inside that new window and navigates
+ * the primary tab to the first URL.
  */
 export function openProfileUrls(urls: string[]): void {
-  if (urls.length === 0) return;
-
-  // window.open without a features string → new TAB (not a popup window).
-  // Passing any features string (even "noopener") instructs the browser to
-  // open a popup window, which is more aggressively blocked and ignores _blank.
-  const firstTab = window.open(urls[0], "_blank");
-
-  if (!firstTab) {
-    // null return = browser blocked the popup. Inform the user.
-    toast.error(
-      "Popups are blocked. Allow popups for this site in your browser's address bar, then try again.",
-      { duration: 7000 }
-    );
+  if (!urls || urls.length === 0) {
+    toast.error("This profile has no URLs to open.");
     return;
   }
 
-  // Security: clear opener reference on the first tab
-  firstTab.opener = null;
+  // Generate single-use launch key to pass URLs safely across windows
+  const launchKey = `profile_launch_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  try {
+    localStorage.setItem(launchKey, JSON.stringify(urls));
+  } catch (e) {
+    console.error("localStorage setItem failed", e);
+  }
 
-  for (let i = 1; i < urls.length; i++) {
-    const tab = window.open(urls[i], "_blank");
-    if (tab) tab.opener = null;
+  const encodedKey = encodeURIComponent(launchKey);
+  const fallbackParam = encodeURIComponent(JSON.stringify(urls.slice(0, 10)));
+  const launcherUrl = `/open-profile?key=${encodedKey}&urls=${fallbackParam}`;
+
+  // Specifying window dimensions and features instructs the browser to spawn a NEW window
+  const width = Math.min(window.screen.availWidth || 1440, 1920);
+  const height = Math.min(window.screen.availHeight || 900, 1080);
+  const features = `width=${width},height=${height},left=0,top=0,menubar=yes,toolbar=yes,location=yes,status=yes,resizable=yes,scrollbars=yes`;
+
+  const newWindow = window.open(launcherUrl, "_blank", features);
+
+  if (!newWindow) {
+    toast.error(
+      "Popups are blocked. Please allow popups for this site in your browser to open profile windows.",
+      { duration: 7000 }
+    );
   }
 }
