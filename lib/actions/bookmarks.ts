@@ -376,3 +376,84 @@ export async function syncContextBookmarks(
     return { error: "Failed to sync bookmarks" };
   }
 }
+
+export async function recordBookmarkVisit(bookmarkId: number) {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "Unauthorized" };
+
+  try {
+    const bookmark = await prisma.bookmark.findFirst({
+      where: { id: bookmarkId, userId: session.user.id, deletedAt: null },
+    });
+
+    if (!bookmark) return { error: "Bookmark not found" };
+
+    await prisma.$transaction(async (tx) => {
+      await tx.bookmarkVisit.create({
+        data: {
+          bookmarkId,
+          visitedAt: new Date(),
+        },
+      });
+
+      await tx.bookmark.update({
+        where: { id: bookmarkId },
+        data: {
+          visitCount: { increment: 1 },
+        },
+      });
+    });
+
+    revalidatePath("/dashboard");
+    revalidatePath("/dashboard/collections");
+    revalidatePath("/dashboard/tags");
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to record bookmark visit:", error);
+    return { error: "Failed to record visit" };
+  }
+}
+
+export async function recordBatchBookmarkVisits(bookmarkIds: number[]) {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "Unauthorized" };
+  if (!bookmarkIds || bookmarkIds.length === 0) return { success: true };
+
+  try {
+    const validBookmarks = await prisma.bookmark.findMany({
+      where: {
+        id: { in: bookmarkIds },
+        userId: session.user.id,
+        deletedAt: null,
+      },
+      select: { id: true },
+    });
+
+    const validIds = validBookmarks.map((b) => b.id);
+    if (validIds.length === 0) return { success: true };
+
+    await prisma.$transaction(async (tx) => {
+      await tx.bookmarkVisit.createMany({
+        data: validIds.map((id) => ({
+          bookmarkId: id,
+          visitedAt: new Date(),
+        })),
+      });
+
+      await tx.bookmark.updateMany({
+        where: { id: { in: validIds } },
+        data: {
+          visitCount: { increment: 1 },
+        },
+      });
+    });
+
+    revalidatePath("/dashboard");
+    revalidatePath("/dashboard/collections");
+    revalidatePath("/dashboard/tags");
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to record batch bookmark visits:", error);
+    return { error: "Failed to record visits" };
+  }
+}

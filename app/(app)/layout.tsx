@@ -21,7 +21,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     include: {
       bookmarks: {
         include: {
-          bookmark: { select: { url: true } },
+          bookmark: { select: { id: true, url: true } },
         },
         orderBy: { addedAt: "asc" },
       },
@@ -35,6 +35,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     name: p.name,
     count: p.bookmarks.length,
     urls: p.bookmarks.map((pb) => pb.bookmark.url),
+    bookmarkIds: p.bookmarks.map((pb) => pb.bookmark.id),
   }));
 
   return (

@@ -10,6 +10,7 @@ interface SidebarProfile {
   name: string;
   count: number;
   urls: string[];
+  bookmarkIds?: number[];
 }
 
 interface SidebarProps {
@@ -117,7 +118,7 @@ export function Sidebar({ profiles }: SidebarProps) {
 
                     {/* Open All button — diagonal arrow */}
                     <button
-                      onClick={() => openProfileUrls(profile.urls)}
+                      onClick={() => openProfileUrls(profile.urls, profile.bookmarkIds)}
                       disabled={profile.count === 0}
                       title={
                         profile.count === 0

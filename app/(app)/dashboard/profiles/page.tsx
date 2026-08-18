@@ -17,7 +17,7 @@ export default async function ProfilesPage() {
     where: { userId: session.user.id, deletedAt: null },
     include: {
       bookmarks: {
-        include: { bookmark: { select: { url: true } } },
+        include: { bookmark: { select: { id: true, url: true } } },
         orderBy: { addedAt: "asc" },
       },
     },
@@ -29,6 +29,7 @@ export default async function ProfilesPage() {
     name: p.name,
     count: p.bookmarks.length,
     urls: p.bookmarks.map((pb) => pb.bookmark.url),
+    bookmarkIds: p.bookmarks.map((pb) => pb.bookmark.id),
   }));
 
   return (

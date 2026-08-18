@@ -15,6 +15,7 @@ interface ProfileCardProps {
     name: string;
     count: number;
     urls: string[];
+    bookmarkIds?: number[];
   };
 }
 
@@ -74,7 +75,7 @@ export function ProfileCard({ profile }: ProfileCardProps) {
 
         {/* Open All CTA */}
         <button
-          onClick={() => openProfileUrls(profile.urls)}
+          onClick={() => openProfileUrls(profile.urls, profile.bookmarkIds)}
           disabled={profile.count === 0}
           className="flex items-center justify-center gap-2 w-full py-2 text-sm font-medium text-text-primary bg-surface border border-border-strong rounded-lg hover:bg-canvas-dark transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >

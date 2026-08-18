@@ -68,9 +68,8 @@ export function TrashRow({ bookmark }: TrashRowProps) {
 
   return (
     <div
-      className={`group flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-6 py-3 px-4 md:px-8 border-b border-border-strong transition-colors ${
-        isPending ? "opacity-50 pointer-events-none" : "hover:bg-surface-alt"
-      }`}
+      className={`group flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-6 py-3 px-4 md:px-8 border-b border-border-strong transition-colors ${isPending ? "opacity-50 pointer-events-none" : "hover:bg-surface-alt"
+        }`}
     >
       {/* Left: Favicon & Info */}
       <div className="flex items-center gap-3 flex-1 min-w-0 w-full">

@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { ArrowSquareOut, ArrowLeft, X, Warning } from "@phosphor-icons/react";
 import { removeBookmarkFromProfile } from "@/lib/actions/profiles";
+import { recordBookmarkVisit } from "@/lib/actions/bookmarks";
 import { openProfileUrls } from "@/lib/openProfile";
 import { getTagColor } from "@/lib/tagColor";
 import { toast } from "sonner";
@@ -63,27 +64,38 @@ function ProfileBookmarkRow({
     });
   };
 
+  const handleLinkClick = () => {
+    recordBookmarkVisit(bookmark.id);
+  };
+
   return (
     <>
       <div
-        className={`group flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-6 py-3 px-4 md:px-8 border-b border-border-strong transition-colors ${
-          removePending ? "opacity-50 pointer-events-none" : "hover:bg-surface-alt"
-        }`}
+        className={`group flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-6 py-3 px-4 md:px-8 border-b border-border-strong transition-colors ${removePending ? "opacity-50 pointer-events-none" : "hover:bg-surface-alt"
+          }`}
       >
         {/* Left: Favicon & Info */}
         <div className="flex items-center gap-3 flex-1 min-w-0 w-full">
-          <div className="shrink-0 w-8 h-8 flex items-center justify-center bg-surface border border-border-strong rounded-md overflow-hidden">
+          <a
+            href={bookmark.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={handleLinkClick}
+            className="shrink-0 w-8 h-8 flex items-center justify-center bg-surface border border-border-strong rounded-md overflow-hidden hover:border-border-focus transition-colors"
+            title={`Visit ${bookmark.title}`}
+          >
             {bookmark.faviconUrl ? (
               <img src={bookmark.faviconUrl} alt="" className="w-4 h-4" loading="lazy" />
             ) : (
               <div className="w-4 h-4 bg-border-strong rounded-sm" />
             )}
-          </div>
+          </a>
           <div className="min-w-0">
             <a
               href={bookmark.url}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={handleLinkClick}
               className="block text-sm font-medium text-text-primary truncate hover:underline underline-offset-4"
               title={bookmark.title}
             >
@@ -217,7 +229,7 @@ export function ProfileDetailClient({ profile, bookmarks, urls }: ProfileDetailC
             Add existing
           </button>
           <button
-            onClick={() => openProfileUrls(urls)}
+            onClick={() => openProfileUrls(urls, activeBookmarks.map((b) => b.id))}
             disabled={activeBookmarks.length === 0}
             className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-text-primary bg-surface border border-border-strong rounded-lg hover:bg-surface-alt transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
@@ -229,9 +241,8 @@ export function ProfileDetailClient({ profile, bookmarks, urls }: ProfileDetailC
 
       {/* Bookmark list */}
       <div
-        className={`border-t border-border-strong transition-opacity duration-200 ${
-          isSyncing ? "opacity-60 pointer-events-none" : "opacity-100"
-        }`}
+        className={`border-t border-border-strong transition-opacity duration-200 ${isSyncing ? "opacity-60 pointer-events-none" : "opacity-100"
+          }`}
       >
         {activeBookmarks.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-32 px-4 text-center animate-in fade-in duration-500">

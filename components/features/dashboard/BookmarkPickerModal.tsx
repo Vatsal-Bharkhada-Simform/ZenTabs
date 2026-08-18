@@ -160,11 +160,10 @@ export function BookmarkPickerModal({
                       </div>
                     </div>
                     <div
-                      className={`shrink-0 w-5 h-5 rounded-md flex items-center justify-center border transition-colors ${
-                        isSelected
+                      className={`shrink-0 w-5 h-5 rounded-md flex items-center justify-center border transition-colors ${isSelected
                           ? "bg-text-primary border-text-primary text-canvas"
                           : "bg-canvas border-border-strong text-transparent group-hover:border-text-muted"
-                      }`}
+                        }`}
                     >
                       <Check size={12} weight="bold" />
                     </div>

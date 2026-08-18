@@ -12,7 +12,7 @@ import {
   Plus,
   X,
 } from "@phosphor-icons/react";
-import { deleteBookmark } from "@/lib/actions/bookmarks";
+import { deleteBookmark, recordBookmarkVisit } from "@/lib/actions/bookmarks";
 import { addBookmarkToProfile, removeBookmarkFromProfile } from "@/lib/actions/profiles";
 import { addBookmarkToCollection, removeBookmarkFromCollection } from "@/lib/actions/collections";
 import { addTagToBookmark } from "@/lib/actions/tags";
@@ -64,10 +64,20 @@ export function BookmarkRow({ bookmark, profiles = [], collections = [], allTags
   const [tagPopoverOpen, setTagPopoverOpen] = useState(false);
   const [tagInput, setTagInput] = useState("");
   const [tagHighlightIndex, setTagHighlightIndex] = useState<number>(-1);
+  const [localVisits, setLocalVisits] = useState(bookmark.visitCount);
   const [deletePending, startDelete] = useTransition();
   const [profilePending, startProfile] = useTransition();
   const [tagPending, startTag] = useTransition();
   const { startSync } = useSyncState();
+
+  useEffect(() => {
+    setLocalVisits(bookmark.visitCount);
+  }, [bookmark.visitCount]);
+
+  const handleLinkClick = () => {
+    setLocalVisits((prev) => prev + 1);
+    recordBookmarkVisit(bookmark.id);
+  };
   const menuRef = useRef<HTMLDivElement>(null);
   const tagPopoverRef = useRef<HTMLDivElement>(null);
   const tagInputRef = useRef<HTMLInputElement>(null);
@@ -224,18 +234,26 @@ export function BookmarkRow({ bookmark, profiles = [], collections = [], allTags
 
         {/* Left: Favicon & Info */}
         <div className="flex items-center gap-3 flex-1 min-w-0 w-full">
-          <div className="shrink-0 w-8 h-8 flex items-center justify-center bg-surface border border-border-strong rounded-md overflow-hidden">
+          <a
+            href={bookmark.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={handleLinkClick}
+            className="shrink-0 w-8 h-8 flex items-center justify-center bg-surface border border-border-strong rounded-md overflow-hidden hover:border-border-focus transition-colors"
+            title={`Visit ${bookmark.title}`}
+          >
             {bookmark.faviconUrl ? (
               <img src={bookmark.faviconUrl} alt="" className="w-4 h-4" loading="lazy" />
             ) : (
               <div className="w-4 h-4 bg-border-strong rounded-sm" />
             )}
-          </div>
+          </a>
           <div className="min-w-0">
             <a
               href={bookmark.url}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={handleLinkClick}
               className="block text-sm font-medium text-text-primary truncate hover:underline underline-offset-4"
               title={bookmark.title}
             >
@@ -327,11 +345,10 @@ export function BookmarkRow({ bookmark, profiles = [], collections = [], allTags
                               e.preventDefault();
                               handleAddTagInline(t.name);
                             }}
-                            className={`flex items-center justify-between gap-1.5 px-2 py-1 text-xs rounded transition-all text-left ${
-                              isHighlighted
+                            className={`flex items-center justify-between gap-1.5 px-2 py-1 text-xs rounded transition-all text-left ${isHighlighted
                                 ? "bg-surface text-text-primary font-semibold ring-1 ring-border-focus shadow-xs"
                                 : "text-text-secondary hover:text-text-primary hover:bg-surface-alt/70"
-                            }`}
+                              }`}
                           >
                             <div className="flex items-center gap-1.5 min-w-0">
                               <span
@@ -357,7 +374,7 @@ export function BookmarkRow({ bookmark, profiles = [], collections = [], allTags
         {/* Right: Meta & Actions */}
         <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto gap-4 shrink-0">
           <div className="flex items-center gap-4 text-xs text-text-secondary font-mono">
-            <span title="Visits">{bookmark.visitCount} views</span>
+            <span title="Visits">{localVisits} {localVisits === 1 ? "view" : "views"}</span>
             <span className="hidden sm:inline">{formattedDate}</span>
           </div>
 

@@ -1,4 +1,5 @@
 import { toast } from "sonner";
+import { recordBatchBookmarkVisits } from "@/lib/actions/bookmarks";
 
 /**
  * Opens all URLs of a profile collectively in a NEW browser window.
@@ -7,10 +8,15 @@ import { toast } from "sonner";
  * which opens subsequent tabs inside that new window and navigates
  * the primary tab to the first URL.
  */
-export function openProfileUrls(urls: string[]): void {
+export function openProfileUrls(urls: string[], bookmarkIds?: number[]): void {
   if (!urls || urls.length === 0) {
     toast.error("This profile has no URLs to open.");
     return;
+  }
+
+  // Record batch visits if bookmarkIds are provided
+  if (bookmarkIds && bookmarkIds.length > 0) {
+    recordBatchBookmarkVisits(bookmarkIds);
   }
 
   // Generate single-use launch key to pass URLs safely across windows
