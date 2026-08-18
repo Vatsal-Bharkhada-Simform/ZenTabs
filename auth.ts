@@ -54,11 +54,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (token?.sub && session.user) {
         session.user.id = token.sub;
       }
+      if (token?.name && session.user) {
+        session.user.name = token.name;
+      }
+      if (token?.picture && session.user) {
+        session.user.image = token.picture;
+      }
       return session;
     },
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.sub = user.id;
+        token.picture = user.image; // user.image contains the avatarUrl as mapped in authorize
+      }
+      if (trigger === "update" && session) {
+        if (session.name) token.name = session.name;
+        if (session.image) token.picture = session.image;
       }
       return token;
     }

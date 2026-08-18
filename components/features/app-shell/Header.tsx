@@ -14,15 +14,9 @@ function getPageTitle(pathname: string) {
   return "Dashboard";
 }
 
-interface HeaderProps {
-  user: {
-    name?: string | null;
-    email?: string | null;
-    image?: string | null;
-  };
-}
 
-export function Header({ user }: HeaderProps) {
+
+export function Header() {
   const pathname = usePathname();
   const title = getPageTitle(pathname);
 
@@ -42,7 +36,7 @@ export function Header({ user }: HeaderProps) {
 
       <div className="flex items-center gap-4">
         {/* Future spot for ProfileSwitcher */}
-        <UserMenu user={user} />
+        <UserMenu />
       </div>
     </header>
   );
