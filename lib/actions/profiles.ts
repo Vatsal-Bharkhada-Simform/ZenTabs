@@ -2,7 +2,19 @@
 
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
+
+function invalidateCache(userId: string) {
+  updateTag(`bookmarks-${userId}`);
+  updateTag(`collections-${userId}`);
+  updateTag(`profiles-${userId}`);
+  updateTag(`tags-${userId}`);
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/collections");
+  revalidatePath("/dashboard/profiles");
+  revalidatePath("/dashboard/tags");
+  revalidatePath("/dashboard/trash");
+}
 
 export async function createProfile(prevState: any, formData: FormData) {
   const session = await auth();
@@ -21,7 +33,7 @@ export async function createProfile(prevState: any, formData: FormData) {
       data: { userId: session.user.id, name },
     });
 
-    revalidatePath("/dashboard/profiles");
+    invalidateCache(session.user.id);
     return { success: true, profileId: profile.id };
   } catch (error) {
     console.error("Failed to create profile:", error);
@@ -52,7 +64,7 @@ export async function updateProfile(prevState: any, formData: FormData) {
 
     await prisma.profile.update({ where: { id }, data: { name } });
 
-    revalidatePath("/dashboard/profiles");
+    invalidateCache(session.user.id);
     revalidatePath(`/dashboard/profiles/${id}`);
     return { success: true };
   } catch (error) {
@@ -78,7 +90,7 @@ export async function deleteProfile(id: number) {
       data: { deletedAt: new Date() },
     });
 
-    revalidatePath("/dashboard/profiles");
+    invalidateCache(session.user.id);
     return { success: true };
   } catch (error) {
     console.error("Failed to delete profile:", error);
@@ -110,8 +122,8 @@ export async function addBookmarkToProfile(profileId: number, bookmarkId: number
       update: {}, // already exists — no-op
     });
 
+    invalidateCache(session.user.id);
     revalidatePath(`/dashboard/profiles/${profileId}`);
-    revalidatePath("/dashboard");
     return { success: true };
   } catch (error) {
     console.error("Failed to add bookmark to profile:", error);
@@ -133,6 +145,7 @@ export async function removeBookmarkFromProfile(profileId: number, bookmarkId: n
       where: { profileId_bookmarkId: { profileId, bookmarkId } },
     });
 
+    invalidateCache(session.user.id);
     revalidatePath(`/dashboard/profiles/${profileId}`);
     return { success: true };
   } catch (error) {

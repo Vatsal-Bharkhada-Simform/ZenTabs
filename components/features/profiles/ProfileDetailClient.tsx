@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { ArrowSquareOut, ArrowLeft, X, Warning } from "@phosphor-icons/react";
 import { removeBookmarkFromProfile } from "@/lib/actions/profiles";
-import { recordBookmarkVisit } from "@/lib/actions/bookmarks";
+
 import { openProfileUrls } from "@/lib/openProfile";
 import { getTagColor } from "@/lib/tagColor";
 import { toast } from "sonner";
@@ -65,7 +65,12 @@ function ProfileBookmarkRow({
   };
 
   const handleLinkClick = () => {
-    recordBookmarkVisit(bookmark.id);
+    fetch("/api/visits", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bookmarkId: bookmark.id }),
+      keepalive: true,
+    }).catch(console.error);
   };
 
   return (

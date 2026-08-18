@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
+import { getCachedSidebarProfiles } from "@/lib/data/cached";
 import { ProfileCard } from "@/components/features/profiles/ProfileCard";
 import { AddProfileButton } from "@/components/features/profiles/AddProfileButton";
 
@@ -13,24 +14,7 @@ export default async function ProfilesPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
 
-  const profiles = await prisma.profile.findMany({
-    where: { userId: session.user.id, deletedAt: null },
-    include: {
-      bookmarks: {
-        include: { bookmark: { select: { id: true, url: true } } },
-        orderBy: { addedAt: "asc" },
-      },
-    },
-    orderBy: { createdAt: "asc" },
-  });
-
-  const profileData = profiles.map((p) => ({
-    id: p.id,
-    name: p.name,
-    count: p.bookmarks.length,
-    urls: p.bookmarks.map((pb) => pb.bookmark.url),
-    bookmarkIds: p.bookmarks.map((pb) => pb.bookmark.id),
-  }));
+  const profileData = await getCachedSidebarProfiles(session.user.id);
 
   return (
     <div className="flex flex-col min-h-full">

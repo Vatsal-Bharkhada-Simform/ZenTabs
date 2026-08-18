@@ -47,7 +47,7 @@ export function SettingsClient({ user }: SettingsClientProps) {
       const res = await generateNewAvatar();
       if (res.error) {
         setMessage({ type: "error", text: res.error });
-      } else {
+      } else if (res.user?.avatarUrl) {
         setAvatarUrl(res.user.avatarUrl);
         await update({ image: res.user.avatarUrl });
         setMessage({ type: "success", text: "New avatar generated!" });

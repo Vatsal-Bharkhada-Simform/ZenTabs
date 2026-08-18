@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
+import { getCachedTags } from "@/lib/data/cached";
 import { TagsClient } from "@/components/features/tags/TagsClient";
 
 export const metadata: Metadata = {
@@ -17,24 +18,11 @@ export default async function TagsPage(props: {
   const searchParams = await props.searchParams;
   const activeTag = typeof searchParams.tag === "string" ? searchParams.tag : "";
 
-  // Fetch all tags with usage count (for this user's active bookmarks)
-  const tagsRaw = await prisma.tag.findMany({
-    where: {
-      bookmarks: {
-        some: { bookmark: { userId: session.user.id, deletedAt: null } },
-      },
-    },
-    include: {
-      _count: { select: { bookmarks: true } },
-    },
-    orderBy: { name: "asc" },
-  });
-
-  const tags = tagsRaw.map((t) => ({ id: t.id, name: t.name, count: t._count.bookmarks }));
+  const tags = await getCachedTags(session.user.id);
 
   // If a tag is selected, fetch its bookmarks
   let activeBookmarks: any[] = [];
-  let allTagsForRow: { id: number; name: string }[] = tags.map((t) => ({
+  let allTagsForRow: { id: number; name: string }[] = tags.map((t: any) => ({
     id: t.id,
     name: t.name,
   }));

@@ -2,7 +2,19 @@
 
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
+
+function invalidateCache(userId: string) {
+  updateTag(`bookmarks-${userId}`);
+  updateTag(`collections-${userId}`);
+  updateTag(`profiles-${userId}`);
+  updateTag(`tags-${userId}`);
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/collections");
+  revalidatePath("/dashboard/profiles");
+  revalidatePath("/dashboard/tags");
+  revalidatePath("/dashboard/trash");
+}
 
 /**
  * Fetch all tags that belong to the current user's bookmarks,
@@ -79,9 +91,7 @@ export async function addTagToBookmark(bookmarkId: number, tagName: string) {
       });
     });
 
-    revalidatePath("/dashboard");
-    revalidatePath("/dashboard/tags");
-    revalidatePath("/dashboard/collections");
+    invalidateCache(session.user.id);
     return { success: true };
   } catch (error) {
     console.error("Failed to add tag:", error);
@@ -107,9 +117,7 @@ export async function removeTagFromBookmark(bookmarkId: number, tagId: number) {
       where: { bookmarkId_tagId: { bookmarkId, tagId } },
     });
 
-    revalidatePath("/dashboard");
-    revalidatePath("/dashboard/tags");
-    revalidatePath("/dashboard/collections");
+    invalidateCache(session.user.id);
     return { success: true };
   } catch (error) {
     console.error("Failed to remove tag:", error);

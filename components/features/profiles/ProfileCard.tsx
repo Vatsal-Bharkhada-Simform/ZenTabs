@@ -45,6 +45,7 @@ export function ProfileCard({ profile }: ProfileCardProps) {
           <div className="min-w-0">
             <Link
               href={`/dashboard/profiles/${profile.id}`}
+              prefetch={true}
               className="text-base font-semibold text-text-primary hover:underline underline-offset-4 truncate block"
             >
               {profile.name}

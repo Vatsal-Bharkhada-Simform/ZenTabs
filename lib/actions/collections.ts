@@ -2,7 +2,19 @@
 
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
+
+function invalidateCache(userId: string) {
+  updateTag(`bookmarks-${userId}`);
+  updateTag(`collections-${userId}`);
+  updateTag(`profiles-${userId}`);
+  updateTag(`tags-${userId}`);
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/collections");
+  revalidatePath("/dashboard/profiles");
+  revalidatePath("/dashboard/tags");
+  revalidatePath("/dashboard/trash");
+}
 
 export async function createCollection(prevState: any, formData: FormData) {
   const session = await auth();
@@ -24,8 +36,7 @@ export async function createCollection(prevState: any, formData: FormData) {
       },
     });
 
-    revalidatePath("/dashboard/collections");
-    revalidatePath("/dashboard");
+    invalidateCache(session.user.id);
     return { success: true, collection };
   } catch (error: any) {
     if (error.code === "P2002") {
@@ -59,8 +70,7 @@ export async function updateCollection(prevState: any, formData: FormData) {
       },
     });
 
-    revalidatePath("/dashboard/collections");
-    revalidatePath("/dashboard");
+    invalidateCache(session.user.id);
     return { success: true, collection };
   } catch (error: any) {
     if (error.code === "P2002") {
@@ -83,8 +93,7 @@ export async function deleteCollection(id: number) {
       },
     });
 
-    revalidatePath("/dashboard/collections");
-    revalidatePath("/dashboard");
+    invalidateCache(session.user.id);
     return { success: true };
   } catch (error) {
     console.error("Failed to delete collection:", error);
@@ -114,8 +123,7 @@ export async function addBookmarkToCollection(collectionId: number, bookmarkId: 
       },
     });
 
-    revalidatePath("/dashboard/collections");
-    revalidatePath("/dashboard");
+    invalidateCache(session.user.id);
     return { success: true };
   } catch (error: any) {
     if (error.code === "P2002") {
@@ -148,8 +156,7 @@ export async function removeBookmarkFromCollection(collectionId: number, bookmar
       },
     });
 
-    revalidatePath("/dashboard/collections");
-    revalidatePath("/dashboard");
+    invalidateCache(session.user.id);
     return { success: true };
   } catch (error) {
     console.error("Failed to remove bookmark from collection:", error);

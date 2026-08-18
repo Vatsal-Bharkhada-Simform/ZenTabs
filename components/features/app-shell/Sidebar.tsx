@@ -54,6 +54,7 @@ export function Sidebar({ profiles }: SidebarProps) {
               <Link
                 key={item.name}
                 href={item.href}
+                prefetch={true}
                 className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
                   isActive
                     ? "bg-surface text-text-primary shadow-sm border border-border-strong"
@@ -102,6 +103,7 @@ export function Sidebar({ profiles }: SidebarProps) {
                     {/* Name + count — navigates to profile detail */}
                     <Link
                       href={`/dashboard/profiles/${profile.id}`}
+                      prefetch={true}
                       className="flex-1 flex items-center gap-2 px-3 py-2 min-w-0"
                     >
                       <span

@@ -61,6 +61,7 @@ export function CollectionListSidebar({ collections, activeId }: CollectionListS
                 <Link
                   key={collection.id}
                   href={`/dashboard/collections?c=${collection.id}`}
+                  prefetch={true}
                   className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg transition-colors border ${
                     isActive
                       ? "bg-canvas text-text-primary border-border-strong shadow-sm"

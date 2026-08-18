@@ -12,7 +12,7 @@ import {
   Plus,
   X,
 } from "@phosphor-icons/react";
-import { deleteBookmark, recordBookmarkVisit } from "@/lib/actions/bookmarks";
+import { deleteBookmark } from "@/lib/actions/bookmarks";
 import { addBookmarkToProfile, removeBookmarkFromProfile } from "@/lib/actions/profiles";
 import { addBookmarkToCollection, removeBookmarkFromCollection } from "@/lib/actions/collections";
 import { addTagToBookmark } from "@/lib/actions/tags";
@@ -76,7 +76,12 @@ export function BookmarkRow({ bookmark, profiles = [], collections = [], allTags
 
   const handleLinkClick = () => {
     setLocalVisits((prev) => prev + 1);
-    recordBookmarkVisit(bookmark.id);
+    fetch("/api/visits", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bookmarkId: bookmark.id }),
+      keepalive: true,
+    }).catch(console.error);
   };
   const menuRef = useRef<HTMLDivElement>(null);
   const tagPopoverRef = useRef<HTMLDivElement>(null);

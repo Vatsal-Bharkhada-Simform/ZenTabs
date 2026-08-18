@@ -1,5 +1,5 @@
 import { toast } from "sonner";
-import { recordBatchBookmarkVisits } from "@/lib/actions/bookmarks";
+
 
 /**
  * Opens all URLs of a profile collectively in a NEW browser window.
@@ -14,9 +14,13 @@ export function openProfileUrls(urls: string[], bookmarkIds?: number[]): void {
     return;
   }
 
-  // Record batch visits if bookmarkIds are provided
   if (bookmarkIds && bookmarkIds.length > 0) {
-    recordBatchBookmarkVisits(bookmarkIds);
+    fetch("/api/visits", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bookmarkIds }),
+      keepalive: true,
+    }).catch(console.error);
   }
 
   // Generate single-use launch key to pass URLs safely across windows

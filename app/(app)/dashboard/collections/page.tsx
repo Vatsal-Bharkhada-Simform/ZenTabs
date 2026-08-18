@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
+import { getCachedCollectionsForRows, getCachedProfilesForRows, getCachedTags, getCachedActiveCollection } from "@/lib/data/cached";
 import { CollectionListSidebar } from "@/components/features/collections/CollectionListSidebar";
 import { CollectionDetail, CollectionDetailEmpty } from "@/components/features/collections/CollectionDetail";
 
@@ -27,84 +28,22 @@ export default async function CollectionsPage(props: {
   else if (sort === "visits-desc") orderBy = { visitCount: "desc" };
 
   // Fetch all collections for the sidebar, and global profiles/collections for BookmarkRow menus
-  const [allCollectionsRaw, allProfilesRaw, allTagsRaw] = await Promise.all([
-    prisma.collection.findMany({
-      where: { userId: session.user.id },
-      include: {
-        bookmarks: { select: { bookmarkId: true } },
-      },
-      orderBy: { name: "asc" },
-    }),
-    prisma.profile.findMany({
-      where: { userId: session.user.id, deletedAt: null },
-      include: {
-        bookmarks: { select: { bookmarkId: true } },
-      },
-      orderBy: { name: "asc" },
-    }),
-    prisma.tag.findMany({
-      where: {
-        bookmarks: {
-          some: { bookmark: { userId: session.user.id, deletedAt: null } },
-        },
-      },
-      orderBy: { name: "asc" },
-    }),
+  const [allCollections, allProfiles, allTags] = await Promise.all([
+    getCachedCollectionsForRows(session.user.id),
+    getCachedProfilesForRows(session.user.id),
+    getCachedTags(session.user.id),
   ]);
 
-  const allTags = allTagsRaw.map((t) => ({ id: t.id, name: t.name }));
-
-  const collectionsForSidebar = allCollectionsRaw.map((c) => ({
+  const collectionsForSidebar = allCollections.map((c) => ({
     id: c.id,
     name: c.name,
-    count: c.bookmarks.length,
-  }));
-
-  const allCollections = allCollectionsRaw.map((c) => ({
-    id: c.id,
-    name: c.name,
-    bookmarkIds: c.bookmarks.map((b) => b.bookmarkId),
-  }));
-
-  const allProfiles = allProfilesRaw.map((p) => ({
-    id: p.id,
-    name: p.name,
-    bookmarkIds: p.bookmarks.map((b) => b.bookmarkId),
+    count: c.bookmarkIds.length,
   }));
 
   // Fetch active collection data if selected
   let activeCollectionData = null;
   if (activeId && !isNaN(activeId)) {
-    activeCollectionData = await prisma.collection.findUnique({
-      where: { id: activeId, userId: session.user.id },
-      include: {
-        bookmarks: {
-          where: {
-            bookmark: {
-              deletedAt: null,
-              ...(q
-                ? {
-                    OR: [
-                      { title: { contains: q, mode: "insensitive" } },
-                      { url: { contains: q, mode: "insensitive" } },
-                      { description: { contains: q, mode: "insensitive" } },
-                    ],
-                  }
-                : {}),
-            },
-          },
-          include: {
-            bookmark: {
-              include: {
-                tags: { include: { tag: true } },
-              },
-            },
-          },
-          // Note: prisma sorting through relation requires a workaround or doing it in memory.
-          // Since we want to sort the actual bookmarks by their fields, we sort in JS below.
-        },
-      },
-    });
+    activeCollectionData = await getCachedActiveCollection(session.user.id, activeId, q);
   }
 
   const activeCollection = activeCollectionData

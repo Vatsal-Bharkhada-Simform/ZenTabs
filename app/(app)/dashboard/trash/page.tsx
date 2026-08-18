@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
+import { getCachedTrashBookmarks } from "@/lib/data/cached";
 import { TrashList } from "@/components/features/trash/TrashList";
 import { EmptyTrashButton } from "@/components/features/trash/EmptyTrashButton";
 
@@ -13,18 +14,7 @@ export default async function TrashPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
 
-  const bookmarks = await prisma.bookmark.findMany({
-    where: {
-      userId: session.user.id,
-      deletedAt: { not: null },
-    },
-    include: {
-      tags: {
-        include: { tag: true },
-      },
-    },
-    orderBy: { deletedAt: "desc" },
-  });
+  const bookmarks = await getCachedTrashBookmarks(session.user.id);
 
   return (
     <div className="flex flex-col min-h-full">

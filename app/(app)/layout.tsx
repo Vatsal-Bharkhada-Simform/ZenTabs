@@ -1,11 +1,13 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
 import { Sidebar } from "@/components/features/app-shell/Sidebar";
 import { Header } from "@/components/features/app-shell/Header";
 import { BottomNav } from "@/components/features/app-shell/BottomNav";
 import { SyncProvider, SyncIndicator } from "@/components/features/dashboard/SyncContext";
 import { SessionProvider } from "next-auth/react";
+import { getCachedSidebarProfiles } from "@/lib/data/cached";
+
+export const instant = false;
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -14,30 +16,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     redirect("/login");
   }
 
-  // Fetch profiles with their bookmark URLs for the sidebar "Open All" feature.
-  // URLs must be in the component at render time — window.open() must be called
-  // synchronously from a user gesture, not after an async fetch.
-  const profiles = await prisma.profile.findMany({
-    where: { userId: session.user.id!, deletedAt: null },
-    include: {
-      bookmarks: {
-        include: {
-          bookmark: { select: { id: true, url: true } },
-        },
-        orderBy: { addedAt: "asc" },
-      },
-    },
-    orderBy: { createdAt: "asc" },
-  });
-
-  // Flatten to a sidebar-friendly shape
-  const sidebarProfiles = profiles.map((p) => ({
-    id: p.id,
-    name: p.name,
-    count: p.bookmarks.length,
-    urls: p.bookmarks.map((pb) => pb.bookmark.url),
-    bookmarkIds: p.bookmarks.map((pb) => pb.bookmark.id),
-  }));
+  // Fetch cached profiles with their bookmark URLs for the sidebar "Open All" feature.
+  const sidebarProfiles = await getCachedSidebarProfiles(session.user.id!);
 
   return (
     <SessionProvider>

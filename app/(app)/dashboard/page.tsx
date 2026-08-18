@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
+import { getCachedBookmarks, getCachedProfilesForRows, getCachedCollectionsForRows, getCachedTags } from "@/lib/data/cached";
 import { BookmarkToolbar } from "@/components/features/dashboard/BookmarkToolbar";
 import { BookmarkList } from "@/components/features/dashboard/BookmarkList";
 import { AddBookmarkButton } from "@/components/features/dashboard/AddBookmarkButton";
@@ -28,67 +29,15 @@ export default async function DashboardPage(props: {
   else if (sort === "name-asc") orderBy = { title: "asc" };
   else if (sort === "visits-desc") orderBy = { visitCount: "desc" };
 
-  // Fetch bookmarks, profiles, collections, and all tags in parallel
-  const [bookmarks, profiles, allCollectionsRaw, allTagsRaw] = await Promise.all([
-    prisma.bookmark.findMany({
-      where: {
-        userId: session.user.id,
-        deletedAt: null,
-        ...(q
-          ? {
-              OR: [
-                { title: { contains: q, mode: "insensitive" } },
-                { url: { contains: q, mode: "insensitive" } },
-                { description: { contains: q, mode: "insensitive" } },
-              ],
-            }
-          : {}),
-        ...(activeTag
-          ? {
-              tags: {
-                some: { tag: { name: activeTag } },
-              },
-            }
-          : {}),
-      },
-      include: {
-        tags: { include: { tag: true } },
-      },
-      orderBy,
-    }),
-    prisma.profile.findMany({
-      where: { userId: session.user.id, deletedAt: null },
-      include: { bookmarks: { select: { bookmarkId: true } } },
-      orderBy: { createdAt: "asc" },
-    }),
-    prisma.collection.findMany({
-      where: { userId: session.user.id },
-      include: { bookmarks: { select: { bookmarkId: true } } },
-      orderBy: { name: "asc" },
-    }),
-    prisma.tag.findMany({
-      where: {
-        bookmarks: {
-          some: { bookmark: { userId: session.user.id, deletedAt: null } },
-        },
-      },
-      orderBy: { name: "asc" },
-    }),
+  // Fetch bookmarks, profiles, collections, and all tags in parallel using the cached layer
+  const [bookmarks, profilesForRow, collectionsForRow, allTags] = await Promise.all([
+    getCachedBookmarks(session.user.id, q, sort, activeTag),
+    getCachedProfilesForRows(session.user.id),
+    getCachedCollectionsForRows(session.user.id),
+    getCachedTags(session.user.id),
   ]);
 
-  const profilesForRow = profiles.map((p) => ({
-    id: p.id,
-    name: p.name,
-    bookmarkIds: p.bookmarks.map((pb) => pb.bookmarkId),
-  }));
 
-  const collectionsForRow = allCollectionsRaw.map((c) => ({
-    id: c.id,
-    name: c.name,
-    bookmarkIds: c.bookmarks.map((bc) => bc.bookmarkId),
-  }));
-
-  const allTags = allTagsRaw.map((t) => ({ id: t.id, name: t.name }));
 
   return (
     <div className="flex flex-col min-h-full">
