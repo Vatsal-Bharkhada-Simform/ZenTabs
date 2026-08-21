@@ -1,8 +1,12 @@
 import type { Metadata } from "next";
 import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
-import { getCachedTags } from "@/lib/data/cached";
+import {
+  getCachedTags,
+  getCachedBookmarks,
+  getCachedProfilesForRows,
+  getCachedCollectionsForRows,
+} from "@/lib/data/cached";
 import { TagsClient } from "@/components/features/tags/TagsClient";
 
 export const metadata: Metadata = {
@@ -19,55 +23,28 @@ export default async function TagsPage(props: {
   const activeTag = typeof searchParams.tag === "string" ? searchParams.tag : "";
 
   const tags = await getCachedTags(session.user.id);
-
-  // If a tag is selected, fetch its bookmarks
-  let activeBookmarks: any[] = [];
-  let allTagsForRow: { id: number; name: string }[] = tags.map((t: any) => ({
+  const allTagsForRow: { id: number; name: string }[] = tags.map((t) => ({
     id: t.id,
     name: t.name,
   }));
 
-  if (activeTag) {
-    const [rawBookmarks, profilesRaw, collectionsRaw] = await Promise.all([
-      prisma.bookmark.findMany({
-        where: {
-          userId: session.user.id,
-          deletedAt: null,
-          tags: { some: { tag: { name: activeTag } } },
-        },
-        include: { tags: { include: { tag: true } } },
-        orderBy: { createdAt: "desc" },
-      }),
-      prisma.profile.findMany({
-        where: { userId: session.user.id, deletedAt: null },
-        include: { bookmarks: { select: { bookmarkId: true } } },
-      }),
-      prisma.collection.findMany({
-        where: { userId: session.user.id },
-        include: { bookmarks: { select: { bookmarkId: true } } },
-      }),
-    ]);
-
-    activeBookmarks = rawBookmarks.map((b) => ({
-      ...b,
-      _profiles: profilesRaw.map((p) => ({
-        id: p.id,
-        name: p.name,
-        bookmarkIds: p.bookmarks.map((pb) => pb.bookmarkId),
-      })),
-      _collections: collectionsRaw.map((c) => ({
-        id: c.id,
-        name: c.name,
-        bookmarkIds: c.bookmarks.map((bc) => bc.bookmarkId),
-      })),
-    }));
-  }
+  // If a tag is selected, fetch its bookmarks via the same cached helpers
+  // the main dashboard uses, so this view stays consistent (and cached).
+  const [bookmarks, profilesForRow, collectionsForRow] = activeTag
+    ? await Promise.all([
+        getCachedBookmarks(session.user.id, "", "date-desc", activeTag),
+        getCachedProfilesForRows(session.user.id),
+        getCachedCollectionsForRows(session.user.id),
+      ])
+    : [[], [], []];
 
   return (
     <TagsClient
       tags={tags}
       activeTag={activeTag}
-      activeBookmarks={activeBookmarks}
+      bookmarks={bookmarks}
+      profiles={profilesForRow}
+      collections={collectionsForRow}
       allTagsForRow={allTagsForRow}
     />
   );

@@ -2,9 +2,16 @@
 
 import Link from "next/link";
 import { Tag, ArrowLeft } from "@phosphor-icons/react";
-import { BookmarkRow } from "@/components/features/dashboard/BookmarkRow";
+import { BookmarkList } from "@/components/features/dashboard/BookmarkList";
 import { getTagColor } from "@/lib/tagColor";
 import { useSyncState } from "@/components/features/dashboard/SyncContext";
+import {
+  computeTagTiers,
+  tierSpanClasses,
+  tierNameClasses,
+  tierEyebrowClasses,
+  tierTruncateClasses,
+} from "@/lib/tagTiers";
 
 interface TagItem {
   id: number;
@@ -12,25 +19,37 @@ interface TagItem {
   count: number;
 }
 
+interface Profile {
+  id: number;
+  name: string;
+  bookmarkIds: number[];
+}
+
+interface Collection {
+  id: number;
+  name: string;
+  bookmarkIds: number[];
+}
+
 interface TagsClientProps {
   tags: TagItem[];
   activeTag: string;
-  activeBookmarks: any[];
+  bookmarks: any[];
+  profiles: Profile[];
+  collections: Collection[];
   allTagsForRow: { id: number; name: string }[];
 }
 
-export function TagsClient({ tags, activeTag, activeBookmarks, allTagsForRow }: TagsClientProps) {
+export function TagsClient({
+  tags,
+  activeTag,
+  bookmarks,
+  profiles,
+  collections,
+  allTagsForRow,
+}: TagsClientProps) {
   const { isSyncing } = useSyncState();
-
-  // Compute font-size scale: larger count → larger text (min 0.7rem, max 1.4rem)
-  const counts = tags.map((t) => t.count);
-  const minCount = Math.min(...counts, 1);
-  const maxCount = Math.max(...counts, 1);
-
-  const getSize = (count: number) => {
-    if (maxCount === minCount) return 1;
-    return 0.75 + ((count - minCount) / (maxCount - minCount)) * 0.75;
-  };
+  const tieredTags = computeTagTiers(tags);
 
   return (
     <div className="flex flex-col min-h-full">
@@ -67,45 +86,62 @@ export function TagsClient({ tags, activeTag, activeBookmarks, allTagsForRow }: 
             isSyncing ? "opacity-60 pointer-events-none" : "opacity-100"
           }`}
         >
-          {/* Tag cloud — colored pills */}
+          {/* Tag grid — bento treemap, tile size ranked by usage */}
           <div className="px-4 md:px-8 pb-6">
-            <div className="border border-border-strong rounded-xl bg-surface p-6 md:p-8">
-              <div className="flex flex-wrap gap-2 items-center">
-                {tags.map((tag) => {
-                  const isActive = tag.name === activeTag;
-                  const color = getTagColor(tag.name);
-                  const rem = getSize(tag.count);
-                  return (
-                    <Link
-                      key={tag.id}
-                      href={isActive ? "/dashboard/tags" : `/dashboard/tags?tag=${encodeURIComponent(tag.name)}`}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-semibold uppercase tracking-wider transition-all duration-150 hover:opacity-80"
-                      style={{
-                        fontSize: `${Math.max(0.7, rem * 0.75)}rem`,
-                        backgroundColor: isActive ? color.text : color.bg,
-                        color: isActive ? color.bg : color.text,
-                        border: `1px solid ${color.border}`,
-                        boxShadow: isActive ? `0 0 0 2px ${color.text}33` : "none",
-                      }}
+            <div className="grid grid-cols-4 md:grid-cols-6 grid-flow-dense auto-rows-[84px] md:auto-rows-[96px] gap-3 md:gap-4">
+              {tieredTags.map((tag, index) => {
+                const isActive = tag.name === activeTag;
+                const color = getTagColor(tag.name);
+                const dimmed = Boolean(activeTag) && !isActive;
+
+                return (
+                  <Link
+                    key={tag.id}
+                    href={isActive ? "/dashboard/tags" : `/dashboard/tags?tag=${encodeURIComponent(tag.name)}`}
+                    title={tag.name}
+                    className={[
+                      "group block bezel-outer h-full",
+                      tierSpanClasses[tag.tier],
+                      "motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 duration-300",
+                      "transition-transform duration-150 ease-[var(--ease-spring)]",
+                      "hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2 focus-visible:ring-offset-canvas",
+                      dimmed ? "opacity-60" : "opacity-100",
+                    ].join(" ")}
+                    style={{
+                      animationDelay: `${Math.min(index * 25, 400)}ms`,
+                      boxShadow: isActive ? `0 0 0 2px ${color.text}` : undefined,
+                    }}
+                  >
+                    <div
+                      className="bezel-inner h-full flex flex-col justify-between p-3 md:p-4 transition-shadow duration-150 hover:shadow-card-hover"
+                      style={{ backgroundColor: isActive ? color.border : color.bg }}
                     >
-                      {tag.name}
                       <span
-                        className="font-mono tabular-nums opacity-70"
-                        style={{ fontSize: "0.6rem" }}
+                        className={`font-mono uppercase tracking-wide ${tierEyebrowClasses[tag.tier]}`}
+                        style={{ color: color.text, opacity: 0.75 }}
                       >
-                        {tag.count}
+                        {tag.tier === "small"
+                          ? tag.count
+                          : `${tag.count} ${tag.count === 1 ? "bookmark" : "bookmarks"}`}
                       </span>
-                    </Link>
-                  );
-                })}
-              </div>
+                      <span
+                        className={[tierNameClasses[tag.tier], tierTruncateClasses[tag.tier]].join(" ")}
+                        style={{ color: color.text }}
+                      >
+                        {tag.name}
+                      </span>
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
           </div>
 
           {/* Active tag bookmark list — matches standard dashboard full-width list style */}
           {activeTag && (
             <div className="flex-1 flex flex-col">
-              <div className="flex items-center justify-between px-4 md:px-8 py-3 bg-canvas/80 backdrop-blur-md border-y border-border-strong">
+              <div className="sticky top-0 z-20 flex items-center justify-between px-4 md:px-8 py-3 bg-canvas/90 backdrop-blur-md border-y border-border-strong">
                 <div className="flex items-center gap-2.5">
                   <Link
                     href="/dashboard/tags"
@@ -118,29 +154,18 @@ export function TagsClient({ tags, activeTag, activeBookmarks, allTagsForRow }: 
                     <Tag size={14} className="text-text-secondary" />
                     <h3 className="text-sm font-semibold text-text-primary">{activeTag}</h3>
                     <span className="text-xs font-mono text-text-muted tabular-nums">
-                      ({activeBookmarks.length})
+                      ({bookmarks.length})
                     </span>
                   </div>
                 </div>
               </div>
 
-              {activeBookmarks.length === 0 ? (
-                <div className="py-20 text-center">
-                  <p className="text-sm text-text-secondary">No active bookmarks with this tag.</p>
-                </div>
-              ) : (
-                <div className="flex flex-col bg-canvas pb-24">
-                  {activeBookmarks.map((b) => (
-                    <BookmarkRow
-                      key={b.id}
-                      bookmark={b}
-                      profiles={b._profiles}
-                      collections={b._collections}
-                      allTags={allTagsForRow}
-                    />
-                  ))}
-                </div>
-              )}
+              <BookmarkList
+                bookmarks={bookmarks}
+                profiles={profiles}
+                collections={collections}
+                allTags={allTagsForRow}
+              />
             </div>
           )}
         </div>

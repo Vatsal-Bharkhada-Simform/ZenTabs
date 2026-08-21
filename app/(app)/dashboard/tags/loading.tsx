@@ -1,3 +1,5 @@
+import { tierSpanClasses, SKELETON_TIER_SEQUENCE } from "@/lib/tagTiers";
+
 export default function TagsLoading() {
   return (
     <div className="flex flex-col min-h-full animate-pulse">
@@ -8,16 +10,14 @@ export default function TagsLoading() {
         </div>
       </div>
       <div className="px-4 md:px-8">
-        <div className="border border-border-strong rounded-xl bg-surface p-6 md:p-8">
-          <div className="flex flex-wrap gap-3">
-            {Array.from({ length: 12 }).map((_, i) => (
-              <div
-                key={i}
-                className="h-5 bg-border-strong rounded"
-                style={{ width: `${48 + (i % 4) * 20}px` }}
-              />
-            ))}
-          </div>
+        <div className="grid grid-cols-4 md:grid-cols-6 grid-flow-dense auto-rows-[84px] md:auto-rows-[96px] gap-3 md:gap-4">
+          {SKELETON_TIER_SEQUENCE.map((tier, i) => (
+            <div
+              key={i}
+              className={`bg-surface-alt border border-border-strong ${tierSpanClasses[tier]}`}
+              style={{ borderRadius: "var(--radius-bezel-outer)" }}
+            />
+          ))}
         </div>
       </div>
     </div>

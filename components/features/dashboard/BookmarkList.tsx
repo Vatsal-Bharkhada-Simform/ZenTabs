@@ -21,8 +21,8 @@ interface Collection {
 
 interface BookmarkListProps {
   bookmarks: any[];
-  profiles?: Profile[];
   collections?: Collection[];
+  profiles?: Profile[];
   contextType?: "profile" | "collection";
   contextId?: number;
   onAddExisting?: () => void;
